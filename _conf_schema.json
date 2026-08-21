@@ -43,8 +43,26 @@
   },
   "group_target_rules": {
     "type": "string",
-    "description": "群聊转述映射规则",
-    "hint": "格式：源群号:目标群1,目标群2;源群号2:（多个规则用分号或换行分隔）。目标留空表示转述回来源群本身。未配置规则的群使用上方「私聊转述目标群」统一转述。示例：111222333:444555666 表示 A 群的人倾诉转述到 B 群；111222333: 表示转述回 A 群自己。",
+    "description": "群聊转述映射规则（群内开启匿名模式时生效）",
+    "hint": "格式：源群号:目标群1,目标群2;源群号2:（多个规则用分号或换行分隔）。目标留空表示转述回来源群本身。未配置规则的群使用上方「私聊转述目标群」统一转述。",
+    "default": ""
+  },
+  "user_target_rules": {
+    "type": "string",
+    "description": "私聊用户映射规则（按用户指定转述目标，优先）",
+    "hint": "格式：用户ID:目标群1,目标群2;用户ID2:目标群3（多个规则用分号或换行分隔）。命中规则的用户私聊倾诉时转述到指定群，不再自动识别。",
+    "default": ""
+  },
+  "auto_detect_groups": {
+    "type": "bool",
+    "description": "自动识别倾诉者所在群（私聊）",
+    "hint": "开启后，私聊开启匿名模式的用户会按「候选群」查询其所在的群并转述到这些群：A 群的人转述到 A 群，同时在 A、B 群的人同时转述到 A、B 群。仅 OneBot/QQ（aiocqhttp）支持，其他平台自动回退统一目标。",
+    "default": true
+  },
+  "detect_group_ids": {
+    "type": "string",
+    "description": "自动识别候选群",
+    "hint": "逗号分隔的群号，只在这些群中查询用户是否在群。留空表示机器人所在的全部群。",
     "default": ""
   },
   "relay_prefix": {
@@ -106,5 +124,35 @@
     "description": "会话空闲超时（分钟）",
     "hint": "倾诉者超过该时长未发消息则自动结束会话；填 0 表示不超时。",
     "default": 0
+  },
+  "admin_commands_enabled": {
+    "type": "bool",
+    "description": "启用管理命令",
+    "hint": "管理员（AstrBot 管理员列表）可在私聊或群聊中发送：禁言 昵称 [分钟]、解禁 昵称、永久禁用 昵称、解除禁用 昵称。",
+    "default": true
+  },
+  "mute_default_min": {
+    "type": "int",
+    "description": "禁言默认时长（分钟）",
+    "hint": "管理命令「禁言 昵称」不带时长时使用的分钟数。",
+    "default": 30
+  },
+  "censor_enabled": {
+    "type": "bool",
+    "description": "脏话自动和谐",
+    "hint": "开启后，转述内容中命中「和谐词库」的词语会被替换为和谐符号。",
+    "default": true
+  },
+  "bad_words": {
+    "type": "string",
+    "description": "和谐词库",
+    "hint": "逗号分隔的脏话词库，命中即替换（忽略大小写）。可自行增删。",
+    "default": "傻逼,煞笔,傻B,草泥马,操你妈,去死,贱人,白痴,智障,废物,他妈的,妈的,混蛋,滚蛋,王八蛋,狗东西,杂种,婊子,你妈"
+  },
+  "censor_mask": {
+    "type": "string",
+    "description": "和谐替换符号",
+    "hint": "命中词库的词语统一替换为该符号。",
+    "default": "**"
   }
 }
