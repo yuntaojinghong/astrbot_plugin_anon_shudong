@@ -522,14 +522,14 @@ async def main():
     rs = await collect(p39.on_message(ev))
     await check("关闭自动开启恢复静默", rs == [] and ev.stopped is True and "p:qq:uSilent" not in p39.sessions)
 
-    # 40. 内容审查：命中敏感词拦截不转述，只提示一次
+    # 40. 内容审查：命中敏感词拦截不转述；每条消息独立判断，每次命中都提示
     p40, ctx40 = make_plugin({**TARGET, "review_words": "反动,极端"})
     await collect(p40.on_message(FakeEvent("开启匿名模式", sender="uR")))
     rs = await collect(p40.on_message(FakeEvent("这是反动言论", sender="uR")))
     await check("审查拦截", len(rs) == 1 and "未通过审查" in rs[0])
     await check("审查不转述", not any(s[0].startswith("qq:GroupMessage:") for s in ctx40.sent))
     rs2 = await collect(p40.on_message(FakeEvent("极端言论测试", sender="uR")))
-    await check("审查后续静默", rs2 == [])
+    await check("审查再次命中仍提示", len(rs2) == 1 and "未通过审查" in rs2[0])
     await collect(p40.on_message(FakeEvent("正常倾诉内容", sender="uR")))
     await check("审查后正常内容转述", any(s[0] == "qq:GroupMessage:123" for s in ctx40.sent))
 
@@ -672,6 +672,20 @@ async def main():
     p55, _ = make_plugin(None)
     await check("file 配置默认值", p55._cfg("bad_words_file") == []
                 and p55._cfg("review_words_file") == [] and p55._cfg("nicknames_file") == [])
+
+    # 56. 审查状态不跨会话/不跨消息：新一轮倾诉命中审查仍提示，正常内容可转述
+    p56, ctx56 = make_plugin({**TARGET, "review_words": "极端"})
+    await collect(p56.on_message(FakeEvent("开启匿名模式", sender="uN")))
+    rs = await collect(p56.on_message(FakeEvent("极端内容", sender="uN")))
+    await check("首轮命中审查提示", len(rs) == 1 and "未通过审查" in rs[0])
+    await collect(p56.on_message(FakeEvent("关闭匿名模式", sender="uN")))
+    await collect(p56.on_message(FakeEvent("开启匿名模式", sender="uN")))
+    rs = await collect(p56.on_message(FakeEvent("还是极端内容", sender="uN")))
+    await check("新一轮命中审查仍提示", len(rs) == 1 and "未通过审查" in rs[0])
+    await collect(p56.on_message(FakeEvent("正常内容", sender="uN")))
+    await check("新一轮正常内容可转述", any(s[0] == "qq:GroupMessage:123" for s in ctx56.sent))
+    rs = await collect(p56.on_message(FakeEvent("又一条极端", sender="uN")))
+    await check("同轮再次命中仍提示", len(rs) == 1 and "未通过审查" in rs[0])
 
     print(f"\n结果: {PASSED} 通过, {FAILED} 失败")
     sys.exit(1 if FAILED else 0)

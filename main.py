@@ -27,7 +27,7 @@ from astrbot.api.star import Context, Star, register
 
 logger = logging.getLogger("astrbot.plugin.anon_relay")
 
-__version__ = "1.8.0"
+__version__ = "1.8.1"
 
 
 @dataclass
@@ -684,17 +684,11 @@ class AnonRelay(Star):
             session["muted_notified"] = False
             await self._save_sessions()
 
-        # 内容审查：命中敏感词（反动/极端言论等）直接拦截，不转述
+        # 内容审查：命中敏感词（反动/极端言论等）直接拦截，不转述。
+        # 每条消息独立判断，不沿用上一条消息的标记（新一轮倾诉不受上一轮影响），命中总是提示。
         text_raw = event.get_message_str().strip()
         if self._cfg_bool("review_enabled") and self._review_hit(text_raw):
-            if not session.get("reviewed_notified"):
-                session["reviewed_notified"] = True
-                await self._save_sessions()
-                return "⚠️ 该内容未通过审查（包含敏感词），未转述。", True
-            return None, True  # 命中审查：静默丢弃
-        if session.get("reviewed_notified"):
-            session["reviewed_notified"] = False
-            await self._save_sessions()
+            return "⚠️ 该内容未通过审查（包含敏感词），未转述。", True
 
         text = self._censor(text_raw)
         images = [c for c in parts if isinstance(c, Image)]
