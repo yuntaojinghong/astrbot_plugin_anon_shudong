@@ -188,8 +188,8 @@ async def check(name, cond, extra=""):
 
 PASSED = 0
 FAILED = 0
-# 默认测试配置：昵称池留空，走编号兜底，保证断言确定
-TARGET = {"target_group_ids": "123", "nicknames": ""}
+# 默认测试配置：昵称池留空（编号兜底），关闭自动匿名（保持原有静默/拦截语义）
+TARGET = {"target_group_ids": "123", "nicknames": "", "auto_anon_private": False}
 
 
 async def main():
@@ -204,8 +204,8 @@ async def main():
     p2, _ = make_plugin(mod.AnonRelayConfig(target_group_ids="456"))
     await check("dataclass 配置", p2._cfg("target_group_ids") == "456" and p2._cfg("relay_prefix") == "【匿名倾诉】")
 
-    # 2. 私聊未开启匿名模式：静默且拦截（stop_event + 阻止默认 LLM）
-    p3, _ = make_plugin(None)
+    # 2. 私聊未开启匿名模式（关闭自动匿名）：静默且拦截（stop_event + 阻止默认 LLM）
+    p3, _ = make_plugin({"auto_anon_private": False})
     ev = FakeEvent("随便聊聊")
     rs = await collect(p3.on_message(ev))
     await check("未开启时无回复", rs == [])
@@ -213,7 +213,7 @@ async def main():
     await check("未开启时阻止默认LLM", ev.llm_blocked is True)
 
     # 3. silent_when_off=False 时不拦截
-    p4, _ = make_plugin({"silent_when_off": False})
+    p4, _ = make_plugin({"silent_when_off": False, "auto_anon_private": False})
     ev = FakeEvent("你好呀")
     rs = await collect(p4.on_message(ev))
     await check("silent=False 不拦截", rs == [] and ev.stopped is False and ev.llm_blocked is False)
@@ -472,6 +472,49 @@ async def main():
     await collect(p36.on_message(FakeEvent("开启匿名模式", sender="uC2")))
     await collect(p36.on_message(FakeEvent("说脏话测试", sender="uC2")))
     await check("关闭和谐原样转述", "脏话" in getattr(ctx36.sent[0][1][0], "text", ""))
+
+    # 37. 私聊自动开启匿名模式（默认开启）：白名单外用户直接进入
+    p37, ctx37 = make_plugin({"target_group_ids": "123", "nicknames": ""})
+    rs = await collect(p37.on_message(FakeEvent("在吗", sender="uAuto")))
+    await check("自动开启会话", len(rs) == 1 and "匿名身份" in rs[0] and "p:qq:uAuto" in p37.sessions)
+    await check("自动开启首条不转述", not any(s[0].startswith("qq:GroupMessage:") for s in ctx37.sent))
+    await collect(p37.on_message(FakeEvent("最近好累", sender="uAuto")))
+    await check("自动开启后转述", any(s[0] == "qq:GroupMessage:123" for s in ctx37.sent))
+    await collect(p37.on_message(FakeEvent("关闭匿名模式", sender="uAuto")))
+    await check("自动开启可关闭", "p:qq:uAuto" not in p37.sessions)
+    await collect(p37.on_message(FakeEvent("又来了", sender="uAuto")))
+    await check("关闭后再次自动开启", "p:qq:uAuto" in p37.sessions)
+
+    # 38. 白名单用户不受自动开启影响：自由聊天 + 关键词可开启
+    p38, _ = make_plugin({"target_group_ids": "123", "private_whitelist": "uFree"})
+    ev = FakeEvent("在吗", sender="uFree")
+    rs = await collect(p38.on_message(ev))
+    await check("白名单自由聊天", rs == [] and ev.stopped is False and "p:qq:uFree" not in p38.sessions)
+    await collect(p38.on_message(FakeEvent("开启匿名模式", sender="uFree")))
+    await check("白名单关键词开启", "p:qq:uFree" in p38.sessions)
+
+    # 39. 关闭自动开启：白名单外回到静默拦截
+    p39, _ = make_plugin({**TARGET, "auto_anon_private": False})
+    ev = FakeEvent("在吗", sender="uSilent")
+    rs = await collect(p39.on_message(ev))
+    await check("关闭自动开启恢复静默", rs == [] and ev.stopped is True and "p:qq:uSilent" not in p39.sessions)
+
+    # 40. 内容审查：命中敏感词拦截不转述，只提示一次
+    p40, ctx40 = make_plugin({**TARGET, "review_words": "反动,极端"})
+    await collect(p40.on_message(FakeEvent("开启匿名模式", sender="uR")))
+    rs = await collect(p40.on_message(FakeEvent("这是反动言论", sender="uR")))
+    await check("审查拦截", len(rs) == 1 and "未通过审查" in rs[0])
+    await check("审查不转述", not any(s[0].startswith("qq:GroupMessage:") for s in ctx40.sent))
+    rs2 = await collect(p40.on_message(FakeEvent("极端言论测试", sender="uR")))
+    await check("审查后续静默", rs2 == [])
+    await collect(p40.on_message(FakeEvent("正常倾诉内容", sender="uR")))
+    await check("审查后正常内容转述", any(s[0] == "qq:GroupMessage:123" for s in ctx40.sent))
+
+    # 41. 关闭审查开关后照常转述
+    p41, ctx41 = make_plugin({**TARGET, "review_words": "反动", "review_enabled": False})
+    await collect(p41.on_message(FakeEvent("开启匿名模式", sender="uR2")))
+    await collect(p41.on_message(FakeEvent("反动测试", sender="uR2")))
+    await check("关闭审查照常转述", any(s[0] == "qq:GroupMessage:123" for s in ctx41.sent))
 
     print(f"\n结果: {PASSED} 通过, {FAILED} 失败")
     sys.exit(1 if FAILED else 0)
