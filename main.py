@@ -25,7 +25,7 @@ from astrbot.api.star import Context, Star, register
 
 logger = logging.getLogger("astrbot.plugin.anon_relay")
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 
 @dataclass
@@ -45,6 +45,7 @@ class AnonRelayConfig:
     show_time: bool = True                    # 在格式模板中提供 {time} 占位符（旧格式附带时间）
     ack_on_relay: bool = True                 # 转述成功后回执（群内会话优先私聊悄悄话）
     silent_when_off: bool = True              # 私聊未开启匿名模式时保持沉默（拦截私聊，不回复）
+    private_whitelist: str = ""               # 私聊白名单（逗号分隔的用户ID），白名单内用户可与机器人正常私聊
     enable_group_mode: bool = True            # 允许在群聊内开启匿名模式
     notify_group_on_start: bool = False       # 开启匿名模式时在目标群内播报一条提示
     max_msg_len: int = 500                    # 单条转述最大字数，超长自动分段发送
@@ -173,10 +174,35 @@ class AnonRelay(Star):
             if self._session_expired(key):
                 return await self._expire_session(key)
             return await self._relay(event, key, private)
-        # 私聊未开启且配置为沉默：拦截；群聊未开启：完全放行
-        if private and self._cfg_bool("silent_when_off"):
+        # 私聊未开启且配置为沉默：拦截（白名单用户放行，可与机器人正常聊天）；群聊未开启：完全放行
+        if private and self._cfg_bool("silent_when_off") and not self._is_whitelisted(event):
             return None, True
         return None, False
+
+    def _is_whitelisted(self, event):
+        """私聊白名单：匹配用户 ID 或 平台:ID（如 qq:2226175932）。"""
+        raw = str(self._cfg("private_whitelist") or "").strip()
+        if not raw:
+            return False
+        try:
+            sender_id = str(event.get_sender_id() or "").strip().lower()
+        except Exception:
+            sender_id = ""
+        if not sender_id:
+            return False
+        try:
+            platform = str(event.get_platform_name() or "").strip().lower()
+        except Exception:
+            platform = ""
+        for entry in re.split(r"[,，、;；\s]+", raw):
+            e = entry.strip().lower()
+            if not e:
+                continue
+            if e == sender_id:
+                return True
+            if platform and e == f"{platform}:{sender_id}":
+                return True
+        return False
 
     # ------------------------------------------------------------------ #
     # 会话控制
