@@ -357,6 +357,26 @@ async def main():
     rs = await collect(p24.on_message(ev))
     await check("群聊模式关闭", rs == [] and ev.stopped is False and not any(k.startswith("g:") for k in p24.sessions))
 
+    # 25. 私聊白名单：白名单用户可正常聊天，非白名单仍拦截
+    p25, _ = make_plugin({**TARGET, "private_whitelist": "uWl"})
+    ev = FakeEvent("在吗？", sender="uWl")
+    rs = await collect(p25.on_message(ev))
+    await check("白名单放行", rs == [] and ev.stopped is False and ev.llm_blocked is False)
+    ev2 = FakeEvent("在吗？", sender="uOther")
+    rs2 = await collect(p25.on_message(ev2))
+    await check("非白名单仍拦截", rs2 == [] and ev2.stopped is True and ev2.llm_blocked is True)
+    await collect(p25.on_message(FakeEvent("开启匿名模式", sender="uWl")))
+    await check("白名单可开匿名", "p:qq:uWl" in p25.sessions)
+
+    # 26. 白名单平台限定格式：qq:uP 只匹配 qq 平台的 uP
+    p26, _ = make_plugin({**TARGET, "private_whitelist": "qq:uP"})
+    ev3 = FakeEvent("hi", sender="uP")
+    rs3 = await collect(p26.on_message(ev3))
+    await check("平台限定白名单放行", rs3 == [] and ev3.stopped is False)
+    ev4 = FakeEvent("hi", sender="uP", platform="tg")
+    rs4 = await collect(p26.on_message(ev4))
+    await check("其他平台不匹配", rs4 == [] and ev4.stopped is True)
+
     print(f"\n结果: {PASSED} 通过, {FAILED} 失败")
     sys.exit(1 if FAILED else 0)
 
