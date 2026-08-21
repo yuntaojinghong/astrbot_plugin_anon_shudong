@@ -25,7 +25,7 @@ from astrbot.api.star import Context, Star, register
 
 logger = logging.getLogger("astrbot.plugin.anon_relay")
 
-__version__ = "1.5.0"
+__version__ = "1.5.1"
 
 
 @dataclass
@@ -306,7 +306,8 @@ class AnonRelay(Star):
         return (
             f"🔇 匿名模式已开启，你的匿名身份是「{nickname}」\n"
             "现在可以开始倾诉了，我会把你的内容匿名转述到指定群聊。\n"
-            f"发送「{stop_hint}」即可结束。"
+            f"发送「{stop_hint}」即可结束。\n"
+            f"📮 本次将转述到：{'、'.join(targets)}"
         ), True
 
     async def _stop_session(self, key):
@@ -405,6 +406,7 @@ class AnonRelay(Star):
 
         # 管理状态检查：永久禁用 / 禁言
         nickname = session.get("nickname", "")
+        self.logger.info("匿名转述：%s → 目标群 %s", nickname, targets)
         if nickname in self.banned:
             return None, True  # 永久禁用：静默丢弃
         mute_until = self.muted.get(nickname)
