@@ -9,6 +9,7 @@ import importlib.util
 import logging
 import os
 import sys
+import tempfile
 import types
 
 # ---------------------------------------------------------------------- #
@@ -38,6 +39,20 @@ class Image:
 
     def __init__(self, file=""):
         self.file = file
+
+
+class File:
+    type = "file"
+
+    def __init__(self, name="", file="", url=""):
+        self.name = name
+        self.file_ = file
+        self.url = url
+
+    async def get_file(self, allow_return_url=False):
+        if allow_return_url and self.url:
+            return self.url
+        return self.file_ or self.url
 
 
 class _Filter:
@@ -105,7 +120,12 @@ _module("astrbot")
 _module("astrbot.api")
 _module("astrbot.api.event", filter=_Filter(), AstrMessageEvent=AstrMessageEvent, MessageChain=MessageChain)
 _module("astrbot.api.star", Context=Context, Star=Star, register=register)
-_module("astrbot.api.message_components", Plain=Plain, Image=Image)
+_module("astrbot.api.message_components", Plain=Plain, Image=Image, File=File)
+# 设置页上传的词库文件存放在插件数据目录（stub 用临时目录）
+TEST_DATA_ROOT = tempfile.mkdtemp(prefix="astrbot_plugin_data_")
+_module("astrbot.core")
+_module("astrbot.core.utils")
+_module("astrbot.core.utils.astrbot_path", get_astrbot_plugin_data_path=lambda: TEST_DATA_ROOT)
 
 # ---------------------------------------------------------------------- #
 # 加载插件
@@ -164,6 +184,9 @@ class FakeEvent:
 
     def should_call_llm(self, value):
         self.llm_blocked = value is False
+
+    def track_temporary_local_file(self, path):
+        pass
 
 
 async def collect(gen):
@@ -515,6 +538,140 @@ async def main():
     await collect(p41.on_message(FakeEvent("开启匿名模式", sender="uR2")))
     await collect(p41.on_message(FakeEvent("反动测试", sender="uR2")))
     await check("关闭审查照常转述", any(s[0] == "qq:GroupMessage:123" for s in ctx41.sent))
+
+    # 42. 管理员上传和谐词库 txt（文件名识别）：替换面板词库并即时生效
+    p42, ctx42 = make_plugin({**TARGET, "bad_words": "脏话"})
+    with tempfile.TemporaryDirectory() as td:
+        fp = os.path.join(td, "bad_words.txt")
+        with open(fp, "w", encoding="utf-8") as f:
+            f.write("# 注释行\n混蛋\n草泥马\n")
+        ev = FakeEvent("", sender="admin42", role="admin", chain=[File("bad_words.txt", file=fp)])
+        rs = await collect(p42.on_message(ev))
+        await check("上传词库回复", len(rs) == 1 and "和谐词库" in rs[0] and "2 个词" in rs[0])
+        await check("上传词库替换生效", p42._bad_words() == ["混蛋", "草泥马"])
+        await collect(p42.on_message(FakeEvent("开启匿名模式", sender="u42")))
+        await collect(p42.on_message(FakeEvent("说脏话，混蛋", sender="u42")))
+        t42 = getattr(ctx42.sent[0][1][0], "text", "")
+        await check("上传词库和谐生效", "混蛋" not in t42 and "说脏话" in t42)
+
+    # 43. 文本命令「上传审查词库」+ 任意文件名 → 审查拦截生效
+    p43, ctx43 = make_plugin({**TARGET, "review_words": "反动"})
+    with tempfile.TemporaryDirectory() as td:
+        fp = os.path.join(td, "任意名字.txt")
+        with open(fp, "w", encoding="utf-8") as f:
+            f.write("极端\n暴力\n")
+        rs = await collect(p43.on_message(FakeEvent("上传审查词库", sender="admin43", role="admin",
+                                                    chain=[File("任意名字.txt", file=fp)])))
+        await check("命令上传审查词库", len(rs) == 1 and "审查词库" in rs[0] and "2 个词" in rs[0])
+        await collect(p43.on_message(FakeEvent("开启匿名模式", sender="u43")))
+        rs = await collect(p43.on_message(FakeEvent("这是极端言论", sender="u43")))
+        await check("上传审查词库生效", len(rs) == 1 and "未通过审查" in rs[0])
+
+    # 44. 非管理员上传被拒
+    p44, _ = make_plugin(TARGET)
+    with tempfile.TemporaryDirectory() as td:
+        fp = os.path.join(td, "bad_words.txt")
+        with open(fp, "w", encoding="utf-8") as f:
+            f.write("混蛋\n")
+        rs = await collect(p44.on_message(FakeEvent("", sender="u44", chain=[File("bad_words.txt", file=fp)])))
+        await check("非管理员上传被拒", len(rs) == 1 and "没有管理员权限" in rs[0])
+
+    # 45. 中文文件名「和谐词库.txt」
+    p45, _ = make_plugin(TARGET)
+    with tempfile.TemporaryDirectory() as td:
+        fp = os.path.join(td, "和谐词库.txt")
+        with open(fp, "w", encoding="utf-8") as f:
+            f.write("煞笔\n")
+        rs = await collect(p45.on_message(FakeEvent("", sender="admin45", role="admin",
+                                                    chain=[File("和谐词库.txt", file=fp)])))
+        await check("中文文件名识别", len(rs) == 1 and "1 个词" in rs[0] and p45._bad_words() == ["煞笔"])
+
+    # 46. GBK 编码 + 注释行 + 逗号分隔 + 去重
+    p46, _ = make_plugin(TARGET)
+    with tempfile.TemporaryDirectory() as td:
+        fp = os.path.join(td, "review_words.txt")
+        with open(fp, "w", encoding="gbk") as f:
+            f.write("# 敏感词\n反动,极端\n反动\n\n暴力\n")
+        rs = await collect(p46.on_message(FakeEvent("", sender="admin46", role="admin",
+                                                    chain=[File("review_words.txt", file=fp)])))
+        await check("GBK编码解析", len(rs) == 1 and "3 个词" in rs[0] and p46._review_words() == ["反动", "极端", "暴力"])
+
+    # 47. 上传昵称池
+    p47, _ = make_plugin({"target_group_ids": "123", "nicknames": "番茄"})
+    with tempfile.TemporaryDirectory() as td:
+        fp = os.path.join(td, "nicknames.txt")
+        with open(fp, "w", encoding="utf-8") as f:
+            f.write("小夜\n小满\n")
+        await collect(p47.on_message(FakeEvent("", sender="admin47", role="admin",
+                                               chain=[File("nicknames.txt", file=fp)])))
+        await collect(p47.on_message(FakeEvent("开启匿名模式", sender="u47")))
+        await check("上传昵称池生效", p47.sessions["p:qq:u47"]["nickname"] in ("小夜", "小满"))
+
+    # 48. 重置词库：单独重置 / 全部重置 / 回退面板配置；非管理员无权
+    p48, _ = make_plugin({**TARGET, "bad_words": "脏话", "review_words": "反动"})
+    rs = await collect(p48.on_message(FakeEvent("重置词库", sender="uAny")))
+    await check("非管理员重置被拒", len(rs) == 1 and "没有管理员权限" in rs[0])
+    await collect(p48.on_message(FakeEvent("重置和谐词库", sender="admin48", role="admin")))
+    await check("单独重置和谐词库", "bad_words" not in p48.uploaded_words and "review_words" in p48.uploaded_words)
+    await collect(p48.on_message(FakeEvent("重置词库", sender="admin48", role="admin")))
+    await check("重置全部词库", not p48.uploaded_words)
+    await check("重置后回退面板配置", p48._bad_words() == ["脏话"] and p48._review_words() == ["反动"])
+
+    # 49. 空文件 / 无有效词 → 提示
+    p49, _ = make_plugin(TARGET)
+    with tempfile.TemporaryDirectory() as td:
+        fp = os.path.join(td, "bad_words.txt")
+        with open(fp, "w", encoding="utf-8") as f:
+            f.write("# 只有注释\n\n")
+        rs = await collect(p49.on_message(FakeEvent("", sender="admin49", role="admin",
+                                                    chain=[File("bad_words.txt", file=fp)])))
+        await check("空词库提示", len(rs) == 1 and "未从文件中解析出任何词" in rs[0])
+
+    # 50. 文件名不匹配且无命令的文件消息：不消费，按正常消息流程处理（群内放行）
+    p50, _ = make_plugin(TARGET)
+    ev = FakeEvent("", sender="u50", private=False, group="111", chain=[File("report.pdf", file="x")])
+    rs = await collect(p50.on_message(ev))
+    await check("无关文件放行", rs == [] and ev.stopped is False)
+
+    # 51. 文件获取失败（仅 URL 且不可下载）→ 提示
+    p51, _ = make_plugin(TARGET)
+    rs = await collect(p51.on_message(FakeEvent("", sender="admin51", role="admin",
+                                                chain=[File("bad_words.txt", url="http://x/bad_words.txt")])))
+    await check("文件获取失败提示", len(rs) == 1 and "无法获取上传的文件" in rs[0])
+
+    # 52. 设置页上传的词库文件（type=file 配置）：解析生效并用于和谐
+    file_dir52 = os.path.join(TEST_DATA_ROOT, "astrbot_plugin_anon_relay", "files", "bad_words_file")
+    os.makedirs(file_dir52, exist_ok=True)
+    file52 = os.path.join(file_dir52, "词库.txt")
+    with open(file52, "w", encoding="utf-8") as f:
+        f.write("# 注释\n混蛋\n草泥马\n")
+    p52, ctx52 = make_plugin({**TARGET, "bad_words": "脏话", "bad_words_file": ["files/bad_words_file/词库.txt"]})
+    await check("设置页文件词库生效", p52._bad_words() == ["混蛋", "草泥马"])
+    await collect(p52.on_message(FakeEvent("开启匿名模式", sender="u52")))
+    await collect(p52.on_message(FakeEvent("说脏话，混蛋", sender="u52")))
+    t52 = getattr(ctx52.sent[0][1][0], "text", "")
+    await check("设置页文件词库和谐生效", "混蛋" not in t52 and "说脏话" in t52)
+
+    # 53. 优先级：聊天上传 > 设置页文件 > 文本字段；重置后回退设置页文件
+    p53, _ = make_plugin({**TARGET, "bad_words": "文本词", "bad_words_file": ["files/bad_words_file/词库.txt"]})
+    await check("设置页文件优先于文本字段", p53._bad_words() == ["混蛋", "草泥马"])
+    with tempfile.TemporaryDirectory() as td:
+        fp53 = os.path.join(td, "bad_words.txt")
+        with open(fp53, "w", encoding="utf-8") as f:
+            f.write("聊天上传词\n")
+        await collect(p53.on_message(FakeEvent("", sender="admin53", role="admin", chain=[File("bad_words.txt", file=fp53)])))
+        await check("聊天上传优先于设置页文件", p53._bad_words() == ["聊天上传词"])
+        await collect(p53.on_message(FakeEvent("重置词库", sender="admin53", role="admin")))
+        await check("重置后回退设置页文件", p53._bad_words() == ["混蛋", "草泥马"])
+
+    # 54. 设置页文件缺失 → 回退文本字段
+    p54, _ = make_plugin({**TARGET, "bad_words": "兜底词", "bad_words_file": ["files/bad_words_file/不存在.txt"]})
+    await check("设置页文件缺失回退", p54._bad_words() == ["兜底词"])
+
+    # 55. file 配置项默认值为空列表
+    p55, _ = make_plugin(None)
+    await check("file 配置默认值", p55._cfg("bad_words_file") == []
+                and p55._cfg("review_words_file") == [] and p55._cfg("nicknames_file") == [])
 
     print(f"\n结果: {PASSED} 通过, {FAILED} 失败")
     sys.exit(1 if FAILED else 0)

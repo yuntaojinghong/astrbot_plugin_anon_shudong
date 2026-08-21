@@ -7,6 +7,7 @@
 - 匿名昵称默认从昵称池随机抽取（如 【番茄】），转述格式模板可自由配置：
   默认 【{name}】：{content}，支持 {name}/{content}/{time} 三个占位符。
 - 群聊目标映射：A 群的人倾诉只转述到 A 群；也可以统一转述到多个群。
+- 词库 txt 文件上传：和谐词库 / 审查词库 / 昵称池 支持管理员直接上传 txt 文件批量导入，可一键重置。
 - 未开启时私聊保持沉默（默认）；群聊未开启时完全不干预正常聊天。
 - 会话状态通过插件 KV 存储持久化，重启后依然有效。
 
@@ -14,18 +15,19 @@
 """
 
 import logging
+import os
 import random
 import re
 import time
-from dataclasses import MISSING, dataclass, fields
+from dataclasses import MISSING, dataclass, field, fields
 
 from astrbot.api.event import AstrMessageEvent, MessageChain, filter
-from astrbot.api.message_components import Image, Plain
+from astrbot.api.message_components import File, Image, Plain
 from astrbot.api.star import Context, Star, register
 
 logger = logging.getLogger("astrbot.plugin.anon_relay")
 
-__version__ = "1.6.0"
+__version__ = "1.8.0"
 
 
 @dataclass
@@ -42,6 +44,7 @@ class AnonRelayConfig:
     detect_group_ids: str = ""                # 自动识别的候选群（逗号分隔；留空=机器人所在全部群）
     relay_format: str = "【{name}】：{content}"  # 转述格式模板，占位符 {name} {content} {time}
     nicknames: str = "番茄,苹果,橘子,草莓,葡萄,西瓜,芒果,菠萝,樱桃,柠檬,蓝莓,桃子,雪梨,石榴,柚子,椰子,荔枝,哈密瓜,火龙果,猕猴桃,香蕉"  # 随机昵称池
+    nicknames_file: list = field(default_factory=list)  # 设置页上传的昵称池文件（files/ 相对路径列表）
     anon_name_prefix: str = "匿名者"           # 昵称池为空时的兜底编号前缀（匿名者-001）
     relay_prefix: str = "【匿名倾诉】"          # 仅当 relay_format 为空（旧格式）时使用
     relay_suffix: str = ""                    # 仅当 relay_format 为空（旧格式）时使用
@@ -58,9 +61,11 @@ class AnonRelayConfig:
     mute_default_min: int = 30                # 禁言默认时长（分钟）
     censor_enabled: bool = True               # 脏话自动和谐
     bad_words: str = "傻逼,煞笔,傻B,草泥马,操你妈,去死,贱人,白痴,智障,废物,他妈的,妈的,混蛋,滚蛋,王八蛋,狗东西,杂种,婊子,你妈"  # 和谐词库（逗号分隔）
+    bad_words_file: list = field(default_factory=list)  # 设置页上传的和谐词库文件（files/ 相对路径列表）
     censor_mask: str = "**"                   # 和谐替换符号
     review_enabled: bool = True               # 内容审查：命中敏感词直接拦截不转述
     review_words: str = ""                    # 审查词库（反动/极端言论等，逗号分隔；命中即拦截）
+    review_words_file: list = field(default_factory=list)  # 设置页上传的审查词库文件（files/ 相对路径列表）
 
 
 @register("astrbot_plugin_anon_relay", "guishe", "匿名倾诉转述：私聊/群聊开启匿名模式后，将内容以匿名身份转述到指定群聊", __version__)
@@ -78,6 +83,26 @@ class AnonRelay(Star):
         self._member_cache_ttl = 600
         self.muted = {}
         self.banned = []
+        self.uploaded_words = {}  # 词库文件上传的词表：{bad_words: [...], review_words: [...], nicknames: [...]}
+        self._file_words_cache = {}  # 设置页上传词库文件的解析缓存：{路径: (mtime_ns, size, [词])}
+        self.plugin_name = self._resolve_plugin_name()
+
+    @staticmethod
+    def _resolve_plugin_name():
+        """解析插件在 AstrBot 数据目录中的目录名（用于定位设置页上传的词库文件）。"""
+        try:
+            from astrbot.core.star.star import star_map
+            meta = star_map.get(AnonRelay.__module__)
+            if meta and getattr(meta, "name", None):
+                return str(meta.name)
+        except Exception:
+            pass
+        try:
+            if getattr(AnonRelay, "name", None):
+                return str(AnonRelay.name)
+        except Exception:
+            pass
+        return "astrbot_plugin_anon_relay"
 
     # ------------------------------------------------------------------ #
     # 配置
@@ -85,7 +110,13 @@ class AnonRelay(Star):
 
     @staticmethod
     def _default_config() -> dict:
-        return {f.name: f.default for f in fields(AnonRelayConfig) if f.default is not MISSING}
+        out = {}
+        for f in fields(AnonRelayConfig):
+            if f.default is not MISSING:
+                out[f.name] = f.default
+            elif f.default_factory is not MISSING:
+                out[f.name] = f.default_factory()
+        return out
 
     @classmethod
     def _merge_config(cls, config):
@@ -135,6 +166,11 @@ class AnonRelay(Star):
             self.counter = int(await self.get_kv_data("counter", 0) or 0)
             self.muted = dict(await self.get_kv_data("muted", {}) or {})
             self.banned = list(await self.get_kv_data("banned", []) or [])
+            raw_uw = await self.get_kv_data("uploaded_words", {}) or {}
+            self.uploaded_words = {
+                k: list(v) for k, v in raw_uw.items()
+                if k in ("bad_words", "review_words", "nicknames") and isinstance(v, (list, tuple))
+            }
         except Exception as e:
             self.logger.warning("读取插件存储失败，本次运行会话数据仅保存在内存: %s", e)
         self._kv_loaded = True
@@ -146,6 +182,7 @@ class AnonRelay(Star):
             await self.put_kv_data("counter", self.counter)
             await self.put_kv_data("muted", self.muted)
             await self.put_kv_data("banned", self.banned)
+            await self.put_kv_data("uploaded_words", self.uploaded_words)
         except Exception as e:
             self.logger.warning("保存会话数据失败: %s", e)
 
@@ -167,6 +204,14 @@ class AnonRelay(Star):
                 if cmd_reply:
                     yield event.plain_result(cmd_reply)
                 return
+        # 词库 txt 文件上传 / 词库重置（仅管理员，私聊与群聊均可）
+        wl_reply, wl_consumed = await self._try_wordlib_command(event)
+        if wl_consumed:
+            self._stop_event(event)
+            self._block_default_llm(event)
+            if wl_reply:
+                yield event.plain_result(wl_reply)
+            return
         if self._is_private_chat(event):
             user_key = self._user_key(event)
             key = f"p:{user_key}"
@@ -240,6 +285,130 @@ class AnonRelay(Star):
             return getattr(event, "role", "") == "admin"
         except Exception:
             return False
+
+    # ------------------------------------------------------------------ #
+    # 词库 txt 文件上传 / 重置（仅管理员）
+    # ------------------------------------------------------------------ #
+
+    WORDLIB_LABELS = {"bad_words": "和谐词库", "review_words": "审查词库", "nicknames": "昵称池"}
+    WORDLIB_FILE_MAX = 2 * 1024 * 1024  # 词库文件大小上限 2MB
+    WORDLIB_MAX_WORDS = 10000           # 单次导入词数上限
+
+    async def _try_wordlib_command(self, event):
+        """识别词库上传/重置命令。返回 (回复文本或 None, 是否已消费该消息)。"""
+        text = event.get_message_str().strip()
+        # 重置命令：重置词库 / 重置和谐词库 / 重置审查词库 / 重置昵称池
+        m = re.match(r"^重置(全部词库|和谐词库|审查词库|昵称池|词库)?$", text)
+        if m:
+            if not self._is_admin(event):
+                return "⚠️ 你没有管理员权限，无法执行该操作。", True
+            target = {"和谐词库": "bad_words", "审查词库": "review_words", "昵称池": "nicknames"}.get(m.group(1))
+            targets = [target] if target else list(self.WORDLIB_LABELS)
+            labels = [self.WORDLIB_LABELS[t] for t in targets]
+            for t in targets:
+                self.uploaded_words.pop(t, None)
+            await self._save_sessions()
+            return f"✅ 已重置{'、'.join(labels)}，恢复为插件配置面板中的设置。", True
+
+        # 上传：消息中带有文件（File 组件）才处理
+        files = [c for c in self._get_message_chain(event) if isinstance(c, File)]
+        if not files:
+            return None, False
+        target = self._wordlib_target_from_text(text) or self._wordlib_target_from_filename(files[0].name)
+        if not target:
+            # 带了文件但无法识别目标：仅当消息明确提到「上传词库」时提示用法，否则放行
+            if "上传" in text and ("词库" in text or "词表" in text or "昵称池" in text):
+                if not self._is_admin(event):
+                    return "⚠️ 你没有管理员权限，无法上传词库。", True
+                return ("⚠️ 无法识别要上传的词库。请将文件名改为 bad_words.txt（和谐词库）、"
+                        "review_words.txt（审查词库）或 nicknames.txt（昵称池），"
+                        "或在消息中说明，如「上传和谐词库」。"), True
+            return None, False
+        if not self._is_admin(event):
+            return "⚠️ 你没有管理员权限，无法上传词库。", True
+        path = await self._resolve_file(files[0], event)
+        if not path:
+            return "⚠️ 无法获取上传的文件（可能下载失败或超过 2MB 上限），请稍后重试。", True
+        words = self._read_words_from_file(path)
+        if not words:
+            return ("⚠️ 未从文件中解析出任何词：请确保是 txt 文本（每行一个词，# 开头为注释行），"
+                    "支持 UTF-8 / GBK 编码。"), True
+        truncated = False
+        if len(words) > self.WORDLIB_MAX_WORDS:
+            words = words[:self.WORDLIB_MAX_WORDS]
+            truncated = True
+        self.uploaded_words[target] = words
+        await self._save_sessions()
+        label = self.WORDLIB_LABELS[target]
+        tip = "（超过 10000 词的部分已忽略）" if truncated else ""
+        return (f"✅ 已上传「{label}」：共加载 {len(words)} 个词（已去重）{tip}，即时生效。\n"
+                "发送「重置词库」可恢复为插件配置面板中的设置。"), True
+
+    async def _resolve_file(self, file_comp, event):
+        """获取上传文件的本地路径；若为 URL 下载的临时文件，登记由框架在事件处理后清理。"""
+        try:
+            path = await file_comp.get_file()
+        except Exception:
+            return ""
+        path = (path or "").strip()
+        if not path or not os.path.exists(path):
+            return ""
+        if os.path.getsize(path) > self.WORDLIB_FILE_MAX:
+            return ""
+        try:
+            if file_comp.url and not file_comp.file_:
+                event.track_temporary_local_file(path)
+        except Exception:
+            pass
+        return path
+
+    @staticmethod
+    def _wordlib_target_from_text(text):
+        low = str(text or "").lower()
+        if "和谐词库" in text or "bad_words" in low or "badwords" in low:
+            return "bad_words"
+        if "审查词库" in text or "review_words" in low or "reviewwords" in low:
+            return "review_words"
+        if "昵称池" in text or "nicknames" in low:
+            return "nicknames"
+        return None
+
+    @staticmethod
+    def _wordlib_target_from_filename(name):
+        base = os.path.splitext(str(name or ""))[0].strip().lower()
+        base = base.replace("词库", "").replace("池", "")
+        if base in ("bad_words", "badwords", "bad", "和谐", "脏话"):
+            return "bad_words"
+        if base in ("review_words", "reviewwords", "review", "审查", "敏感词", "敏感"):
+            return "review_words"
+        if base in ("nicknames", "nickname", "昵称", "names"):
+            return "nicknames"
+        return None
+
+    @staticmethod
+    def _read_words_from_file(path):
+        """读取词库 txt：支持 UTF-8（含 BOM）与 GBK/GB18030 编码；每行一个词，# 开头为注释行；
+        一行内也可用逗号、顿号、分号或空白分隔多个词。"""
+        raw = None
+        for enc in ("utf-8-sig", "utf-8", "gb18030"):
+            try:
+                with open(path, "r", encoding=enc) as f:
+                    raw = f.read()
+                break
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+        if raw is None:
+            return []
+        words = []
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            for part in re.split(r"[,，、;；\s]+", line):
+                p = part.strip()
+                if p and p not in words:
+                    words.append(p)
+        return words
 
     async def _handle_message(self, event, key, user_key, private):
         text = event.get_message_str().strip()
@@ -359,12 +528,68 @@ class AnonRelay(Star):
         return nickname
 
     def _nickname_pool(self):
+        uploaded = self.uploaded_words.get("nicknames")
+        if uploaded:
+            return list(uploaded)
+        file_words = self._words_from_config_files("nicknames_file")
+        if file_words:
+            return file_words
         pool = []
         for part in re.split(r"[,，、;；\s]+", str(self._cfg("nicknames") or "")):
             p = part.strip()
             if p and p not in pool:
                 pool.append(p)
         return pool
+
+    # ------------------------------------------------------------------ #
+    # 设置页上传的词库文件（_conf_schema.json 中 type=file 的配置项）
+    # ------------------------------------------------------------------ #
+
+    def _config_file_paths(self, key):
+        """把设置页上传的文件相对路径（files/...）解析为本地绝对路径列表。"""
+        v = self._cfg(key)
+        if not v:
+            return []
+        if isinstance(v, str):
+            v = [v]
+        try:
+            from astrbot.core.utils.astrbot_path import get_astrbot_plugin_data_path
+            root = os.path.join(get_astrbot_plugin_data_path(), self.plugin_name)
+        except Exception:
+            root = ""
+        paths = []
+        for item in v:
+            rel = str(item or "").strip().replace("\\", "/")
+            if not rel.startswith("files/"):
+                continue
+            p = os.path.join(root, rel) if root else rel
+            if os.path.isfile(p):
+                paths.append(p)
+        return paths
+
+    def _words_from_config_files(self, key):
+        """从设置页上传的词库文件解析词表（带缓存，文件变化自动失效）。"""
+        words = []
+        for path in self._config_file_paths(key):
+            try:
+                st = os.stat(path)
+                sig = (st.st_mtime_ns, st.st_size)
+            except OSError:
+                continue
+            cached = self._file_words_cache.get(path)
+            if cached and cached[0] == sig:
+                words.extend(cached[1])
+                continue
+            parsed = self._read_words_from_file(path)
+            self._file_words_cache[path] = (sig, parsed)
+            words.extend(parsed)
+        seen = set()
+        out = []
+        for w in words:
+            if w not in seen:
+                seen.add(w)
+                out.append(w)
+        return out
 
     # ------------------------------------------------------------------ #
     # 脏话和谐
@@ -382,6 +607,12 @@ class AnonRelay(Star):
         return pattern.sub(mask, text)
 
     def _bad_words(self):
+        uploaded = self.uploaded_words.get("bad_words")
+        if uploaded:
+            return list(uploaded)
+        file_words = self._words_from_config_files("bad_words_file")
+        if file_words:
+            return file_words
         words = []
         for part in re.split(r"[,，、;；\s]+", str(self._cfg("bad_words") or "")):
             p = part.strip()
@@ -397,6 +628,12 @@ class AnonRelay(Star):
         return any(w in text for w in words)
 
     def _review_words(self):
+        uploaded = self.uploaded_words.get("review_words")
+        if uploaded:
+            return list(uploaded)
+        file_words = self._words_from_config_files("review_words_file")
+        if file_words:
+            return file_words
         words = []
         for part in re.split(r"[,，、;；\s]+", str(self._cfg("review_words") or "")):
             p = part.strip()
