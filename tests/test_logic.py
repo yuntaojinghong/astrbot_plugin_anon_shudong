@@ -65,12 +65,19 @@ class Context:
     def __init__(self):
         self.sent = []
         self.fail = False
+        self.platform_clients = {}
 
     async def send_message(self, session_str, chain):
         if self.fail:
             return False
         self.sent.append((session_str, chain))
         return True
+
+    def get_platform_inst(self, platform_id):
+        client = self.platform_clients.get(platform_id)
+        if client is None:
+            return None
+        return types.SimpleNamespace(get_client=lambda: client)
 
 
 class Star:
@@ -112,13 +119,14 @@ spec.loader.exec_module(mod)
 
 
 class FakeEvent:
-    def __init__(self, text, sender="u1", platform="qq", private=True, chain=None, group=""):
+    def __init__(self, text, sender="u1", platform="qq", private=True, chain=None, group="", role="member"):
         self._text = text
         self._sender = sender
         self._platform = platform
         self._private = private
         self._chain = chain
         self._group = group
+        self._role = role
         self.stopped = False
         self.llm_blocked = False
 
@@ -141,6 +149,9 @@ class FakeEvent:
 
     def is_private_chat(self):
         return self._private
+
+    def is_admin(self):
+        return self._role == "admin"
 
     def get_group_id(self):
         return self._group
@@ -355,7 +366,7 @@ async def main():
     p24, _ = make_plugin({"enable_group_mode": False})
     ev = FakeEvent("开启匿名模式", private=False, group="111")
     rs = await collect(p24.on_message(ev))
-    await check("群聊模式关闭", rs == [] and ev.stopped is False and not any(k.startswith("g:") for k in p24.sessions))
+    await check("群聊模式关闭", rs == [] and ev.stopped is False and "g:qq:u1:111" not in p24.sessions)
 
     # 25. 私聊白名单：白名单用户可正常聊天，非白名单仍拦截
     p25, _ = make_plugin({**TARGET, "private_whitelist": "uWl"})
@@ -376,6 +387,91 @@ async def main():
     ev4 = FakeEvent("hi", sender="uP", platform="tg")
     rs4 = await collect(p26.on_message(ev4))
     await check("其他平台不匹配", rs4 == [] and ev4.stopped is True)
+
+    # 27. 私聊用户映射规则：uM1 私聊 → 456,457
+    p27, ctx27 = make_plugin({"user_target_rules": "uM1:456,457", "nicknames": ""})
+    await collect(p27.on_message(FakeEvent("开启匿名模式", sender="uM1")))
+    await collect(p27.on_message(FakeEvent("内容", sender="uM1")))
+    await check("用户映射规则", {s[0] for s in ctx27.sent if "GroupMessage" in s[0]}
+                == {"qq:GroupMessage:456", "qq:GroupMessage:457"})
+
+    # 28. 自动识别所在群：uG1 属于 111、222 → 同时转述；uNone 不在任何候选群 → 统一目标
+    client28 = types.SimpleNamespace()
+    members28 = {"111": ["uG1", "uX"], "222": ["uG1"], "333": ["uX"]}
+
+    async def gml28(group_id, no_cache=None):
+        return [{"user_id": u} for u in members28.get(str(group_id), [])]
+
+    client28.get_group_member_list = gml28
+    p28, ctx28 = make_plugin({**TARGET, "detect_group_ids": "111,222,333"})
+    ctx28.platform_clients["aiocqhttp"] = client28
+    await collect(p28.on_message(FakeEvent("开启匿名模式", sender="uG1", platform="aiocqhttp")))
+    await collect(p28.on_message(FakeEvent("内容", sender="uG1", platform="aiocqhttp")))
+    await check("自动识别所在群(同时转述)", {s[0] for s in ctx28.sent if "GroupMessage" in s[0]}
+                == {"aiocqhttp:GroupMessage:111", "aiocqhttp:GroupMessage:222"})
+    await collect(p28.on_message(FakeEvent("开启匿名模式", sender="uNone", platform="aiocqhttp")))
+    await collect(p28.on_message(FakeEvent("内容", sender="uNone", platform="aiocqhttp")))
+    await check("不在候选群回退统一", any(s[0] == "aiocqhttp:GroupMessage:123" for s in ctx28.sent))
+
+    # 29. 关闭自动识别 → 统一目标
+    p29, ctx29 = make_plugin({**TARGET, "auto_detect_groups": False})
+    ctx29.platform_clients["aiocqhttp"] = client28
+    await collect(p29.on_message(FakeEvent("开启匿名模式", sender="uG1", platform="aiocqhttp")))
+    await collect(p29.on_message(FakeEvent("内容", sender="uG1", platform="aiocqhttp")))
+    await check("关闭自动识别用统一目标", {s[0] for s in ctx29.sent if "GroupMessage" in s[0]}
+                == {"aiocqhttp:GroupMessage:123"})
+
+    # 30. 非 OneBot 平台（qq）自动识别跳过 → 统一目标
+    p30, ctx30 = make_plugin({**TARGET, "detect_group_ids": "111"})
+    ctx30.platform_clients["qq"] = client28
+    await collect(p30.on_message(FakeEvent("开启匿名模式", sender="uG1")))
+    await collect(p30.on_message(FakeEvent("内容", sender="uG1")))
+    await check("非OneBot平台回退统一", {s[0] for s in ctx30.sent if "GroupMessage" in s[0]}
+                == {"qq:GroupMessage:123"})
+
+    # 31. 管理员禁言：禁言后不转述，只提示一次
+    p31, ctx31 = make_plugin({"nicknames": "番茄", "target_group_ids": "123"})
+    await collect(p31.on_message(FakeEvent("开启匿名模式", sender="uMute")))
+    rs = await collect(p31.on_message(FakeEvent("禁言 番茄 10", sender="admin1", role="admin", private=False, group="111")))
+    await check("禁言命令回复", len(rs) == 1 and "已禁言" in rs[0] and "番茄" in rs[0])
+    rs1 = await collect(p31.on_message(FakeEvent("第一条", sender="uMute")))
+    await check("禁言期间提示一次", len(rs1) == 1 and "禁言" in rs1[0])
+    await check("禁言不转述", not any(s[0].startswith("qq:GroupMessage:") for s in ctx31.sent))
+    rs2 = await collect(p31.on_message(FakeEvent("第二条", sender="uMute")))
+    await check("禁言后续静默", rs2 == [])
+
+    # 32. 解禁后恢复转述
+    await collect(p31.on_message(FakeEvent("解禁 番茄", sender="admin1", role="admin", private=False, group="111")))
+    await collect(p31.on_message(FakeEvent("恢复后的第一条消息", sender="uMute")))
+    await check("解禁后恢复转述", any(s[0] == "qq:GroupMessage:123" for s in ctx31.sent))
+
+    # 33. 永久禁用：无法再开启匿名模式
+    p33, _ = make_plugin({"nicknames": "草莓", "target_group_ids": "123"})
+    await collect(p33.on_message(FakeEvent("永久禁用 草莓", sender="admin1", role="admin", private=False, group="111")))
+    rs = await collect(p33.on_message(FakeEvent("开启匿名模式", sender="uBan")))
+    await check("永久禁用拒绝开启", len(rs) == 1 and "永久禁用" in rs[0] and "p:qq:uBan" not in p33.sessions)
+    await collect(p33.on_message(FakeEvent("解除禁用 草莓", sender="admin1", role="admin", private=False, group="111")))
+    rs = await collect(p33.on_message(FakeEvent("开启匿名模式", sender="uBan")))
+    await check("解除禁用后恢复", len(rs) == 1 and "已开启" in rs[0] and "p:qq:uBan" in p33.sessions)
+
+    # 34. 非管理员无权执行
+    p34, _ = make_plugin({"nicknames": "橘子", "target_group_ids": "123"})
+    rs = await collect(p34.on_message(FakeEvent("禁言 橘子 10", sender="uAny")))
+    await check("非管理员无权限", len(rs) == 1 and "没有管理员权限" in rs[0] and "橘子" not in p34.muted)
+
+    # 35. 脏话自动和谐
+    p35, ctx35 = make_plugin({**TARGET, "bad_words": "脏话,混蛋"})
+    await collect(p35.on_message(FakeEvent("开启匿名模式", sender="uC")))
+    await collect(p35.on_message(FakeEvent("你在说脏话，混蛋", sender="uC")))
+    sent_text35 = getattr(ctx35.sent[0][1][0], "text", "")
+    await check("脏话和谐", "**" in sent_text35 and "脏话" not in sent_text35 and "混蛋" not in sent_text35)
+    await check("正常文字保留", "你在说" in sent_text35)
+
+    # 36. 关闭和谐开关后原样转述
+    p36, ctx36 = make_plugin({**TARGET, "bad_words": "脏话", "censor_enabled": False})
+    await collect(p36.on_message(FakeEvent("开启匿名模式", sender="uC2")))
+    await collect(p36.on_message(FakeEvent("说脏话测试", sender="uC2")))
+    await check("关闭和谐原样转述", "脏话" in getattr(ctx36.sent[0][1][0], "text", ""))
 
     print(f"\n结果: {PASSED} 通过, {FAILED} 失败")
     sys.exit(1 if FAILED else 0)
