@@ -8,67 +8,91 @@
   "start_keywords": {
     "type": "string",
     "description": "开启匿名模式的关键词",
-    "hint": "私聊消息包含任意一个关键词即开启会话；多个关键词用英文逗号分隔。",
+    "hint": "消息包含任意一个关键词即开启会话（私聊或群聊均可）；多个关键词用英文逗号分隔。",
     "default": "开启匿名模式"
   },
   "stop_keywords": {
     "type": "string",
     "description": "关闭会话的关键词",
-    "hint": "私聊消息包含任意一个关键词即结束会话；多个关键词用英文逗号分隔。",
+    "hint": "消息包含任意一个关键词即结束会话；多个关键词用英文逗号分隔。",
     "default": "关闭匿名模式,结束倾诉"
+  },
+  "relay_format": {
+    "type": "string",
+    "description": "转述消息格式模板",
+    "hint": "占位符：{name} 匿名昵称、{content} 倾诉内容、{time} 时间（MM-DD HH:MM）。留空则使用旧格式（前缀+昵称+时间一行，内容在下方）。",
+    "default": "【{name}】：{content}"
+  },
+  "nicknames": {
+    "type": "string",
+    "description": "随机昵称池",
+    "hint": "新用户开启匿名模式时从中随机抽取一个昵称（同一用户固定不变）。多个昵称用英文逗号分隔；留空则使用编号兜底（如 匿名者-001）。",
+    "default": "番茄,苹果,橘子,草莓,葡萄,西瓜,芒果,菠萝,樱桃,柠檬,蓝莓,桃子,雪梨,石榴,柚子,椰子,荔枝,哈密瓜,火龙果,猕猴桃,香蕉"
+  },
+  "anon_name_prefix": {
+    "type": "string",
+    "description": "编号兜底昵称前缀",
+    "hint": "昵称池为空时使用，自动编号，如 匿名者-001。",
+    "default": "匿名者"
   },
   "target_group_ids": {
     "type": "string",
-    "description": "目标群号（必填）",
-    "hint": "转述消息发送到的群聊，多个群号用英文逗号分隔，如 123456789,987654321。QQ/OneBot 填群号数字；Telegram 填 chat id（可能为负数）。",
+    "description": "私聊转述目标群（必填）",
+    "hint": "私聊会话转述到的群聊；同时作为群聊模式未匹配映射规则时的统一兜底目标。多个群号用英文逗号分隔，如 123456789,987654321。QQ/OneBot 填群号数字；Telegram 填 chat id（可能为负数）。",
+    "default": ""
+  },
+  "group_target_rules": {
+    "type": "string",
+    "description": "群聊转述映射规则",
+    "hint": "格式：源群号:目标群1,目标群2;源群号2:（多个规则用分号或换行分隔）。目标留空表示转述回来源群本身。未配置规则的群使用上方「私聊转述目标群」统一转述。示例：111222333:444555666 表示 A 群的人倾诉转述到 B 群；111222333: 表示转述回 A 群自己。",
     "default": ""
   },
   "relay_prefix": {
     "type": "string",
-    "description": "群内转述消息前缀",
-    "hint": "显示在每条转述消息开头的标识，如【匿名倾诉】。",
+    "description": "旧格式前缀（relay_format 留空时生效）",
+    "hint": "旧格式下显示在转述消息开头的标识，如【匿名倾诉】。",
     "default": "【匿名倾诉】"
   },
   "relay_suffix": {
     "type": "string",
-    "description": "群内转述消息后缀",
-    "hint": "附加在转述消息尾部的文字，可留空，如：（来自匿名树洞）。",
+    "description": "旧格式后缀（relay_format 留空时生效）",
+    "hint": "旧格式下附加在转述消息尾部的文字，可留空。",
     "default": ""
-  },
-  "anon_name_prefix": {
-    "type": "string",
-    "description": "匿名昵称前缀",
-    "hint": "自动编号生成匿名身份，如 匿名者-001。同一用户多次倾诉编号不变。",
-    "default": "匿名者"
   },
   "show_time": {
     "type": "bool",
-    "description": "转述时附带时间",
-    "hint": "在转述消息头部显示 MM-DD HH:MM 时间。",
+    "description": "启用时间占位符",
+    "hint": "开启后格式模板中的 {time} 会替换为 MM-DD HH:MM；旧格式则在首行附带时间。",
     "default": true
   },
   "ack_on_relay": {
     "type": "bool",
     "description": "转述成功回执",
-    "hint": "每次转述成功后向倾诉者发送一条私聊回执。",
+    "hint": "每次转述成功后向倾诉者发送回执。群聊会话优先发私聊悄悄话，私聊不可达时改为群内提示。",
     "default": true
   },
   "silent_when_off": {
     "type": "bool",
-    "description": "未开启匿名模式时保持沉默",
+    "description": "私聊未开启时保持沉默",
     "hint": "开启后，未开启匿名模式的私聊消息会被拦截，机器人（包括 LLM）不会回复。关闭则放行给其他处理器。",
+    "default": true
+  },
+  "enable_group_mode": {
+    "type": "bool",
+    "description": "允许群聊内开启匿名模式",
+    "hint": "开启后，群成员可在群里发送开启关键词建立匿名会话，倾诉内容按映射规则匿名转述到目标群。未开启时群聊消息完全不干预。",
     "default": true
   },
   "notify_group_on_start": {
     "type": "bool",
-    "description": "开启时在群内播报",
+    "description": "开启时在目标群内播报",
     "hint": "有人开启匿名模式时，在目标群内播报一条提示消息。",
     "default": false
   },
   "max_msg_len": {
     "type": "int",
     "description": "单条转述最大字数",
-    "hint": "超过该长度的内容自动分段发送，避免单条消息过长。",
+    "hint": "超过该长度的内容自动分段发送（每段都会套用格式模板），避免单条消息过长。",
     "default": 500
   },
   "session_timeout_min": {
