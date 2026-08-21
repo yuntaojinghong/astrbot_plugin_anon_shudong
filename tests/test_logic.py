@@ -234,7 +234,7 @@ async def main():
     p7, ctx7 = make_plugin(TARGET)
     ev = FakeEvent("我想开启匿名模式倾诉")
     rs = await collect(p7.on_message(ev))
-    await check("开启回复", len(rs) == 1 and "匿名身份" in rs[0])
+    await check("开启回复", len(rs) == 1 and "匿名身份" in rs[0] and "将转述到" in rs[0] and "123" in rs[0])
     await check("会话建立", "p:qq:u1" in p7.sessions and p7.sessions["p:qq:u1"]["nickname"] == "匿名者-001")
     await check("重复开启提示", len(await collect(p7.on_message(FakeEvent("开启匿名模式")))) == 1)
 
