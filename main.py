@@ -25,7 +25,7 @@ from astrbot.api.star import Context, Star, register
 
 logger = logging.getLogger("astrbot.plugin.anon_relay")
 
-__version__ = "1.5.1"
+__version__ = "1.6.0"
 
 
 @dataclass
@@ -49,6 +49,7 @@ class AnonRelayConfig:
     ack_on_relay: bool = True                 # 转述成功后回执（群内会话优先私聊悄悄话）
     silent_when_off: bool = True              # 私聊未开启匿名模式时保持沉默（拦截私聊，不回复）
     private_whitelist: str = ""               # 私聊白名单（逗号分隔的用户ID），白名单内用户可与机器人正常私聊
+    auto_anon_private: bool = True            # 私聊自动开启匿名模式：白名单外用户私聊直接进入匿名模式，白名单用户可自由聊天（仍可用关键词开启）
     enable_group_mode: bool = True            # 允许在群聊内开启匿名模式
     notify_group_on_start: bool = False       # 开启匿名模式时在目标群内播报一条提示
     max_msg_len: int = 500                    # 单条转述最大字数，超长自动分段发送
@@ -58,6 +59,8 @@ class AnonRelayConfig:
     censor_enabled: bool = True               # 脏话自动和谐
     bad_words: str = "傻逼,煞笔,傻B,草泥马,操你妈,去死,贱人,白痴,智障,废物,他妈的,妈的,混蛋,滚蛋,王八蛋,狗东西,杂种,婊子,你妈"  # 和谐词库（逗号分隔）
     censor_mask: str = "**"                   # 和谐替换符号
+    review_enabled: bool = True               # 内容审查：命中敏感词直接拦截不转述
+    review_words: str = ""                    # 审查词库（反动/极端言论等，逗号分隔；命中即拦截）
 
 
 @register("astrbot_plugin_anon_relay", "guishe", "匿名倾诉转述：私聊/群聊开启匿名模式后，将内容以匿名身份转述到指定群聊", __version__)
@@ -248,9 +251,16 @@ class AnonRelay(Star):
             if self._session_expired(key):
                 return await self._expire_session(key)
             return await self._relay(event, key, private)
-        # 私聊未开启且配置为沉默：拦截（白名单用户放行，可与机器人正常聊天）；群聊未开启：完全放行
-        if private and self._cfg_bool("silent_when_off") and not self._is_whitelisted(event):
-            return None, True
+        if private:
+            whitelisted = self._is_whitelisted(event)
+            if not whitelisted:
+                # 白名单外：开启自动匿名模式时，私聊直接进入匿名模式（无需关键词）
+                if self._cfg_bool("auto_anon_private"):
+                    return await self._start_session(event, key, user_key, private)
+                # 否则按沉默策略处理
+                if self._cfg_bool("silent_when_off"):
+                    return None, True
+        # 白名单内自由聊天；群聊未开启：完全放行
         return None, False
 
     def _is_whitelisted(self, event):
@@ -379,6 +389,21 @@ class AnonRelay(Star):
                 words.append(p)
         return words
 
+    def _review_hit(self, text):
+        """内容审查：文本命中审查词库（反动/极端言论等）返回 True。"""
+        words = self._review_words()
+        if not words:
+            return False
+        return any(w in text for w in words)
+
+    def _review_words(self):
+        words = []
+        for part in re.split(r"[,，、;；\s]+", str(self._cfg("review_words") or "")):
+            p = part.strip()
+            if p and p not in words:
+                words.append(p)
+        return words
+
     # ------------------------------------------------------------------ #
     # 转述
     # ------------------------------------------------------------------ #
@@ -422,7 +447,19 @@ class AnonRelay(Star):
             session["muted_notified"] = False
             await self._save_sessions()
 
-        text = self._censor(event.get_message_str().strip())
+        # 内容审查：命中敏感词（反动/极端言论等）直接拦截，不转述
+        text_raw = event.get_message_str().strip()
+        if self._cfg_bool("review_enabled") and self._review_hit(text_raw):
+            if not session.get("reviewed_notified"):
+                session["reviewed_notified"] = True
+                await self._save_sessions()
+                return "⚠️ 该内容未通过审查（包含敏感词），未转述。", True
+            return None, True  # 命中审查：静默丢弃
+        if session.get("reviewed_notified"):
+            session["reviewed_notified"] = False
+            await self._save_sessions()
+
+        text = self._censor(text_raw)
         images = [c for c in parts if isinstance(c, Image)]
         max_len = self._cfg_int("max_msg_len") or 500
         msgs = self._build_relay_messages(nickname, text, images, max_len)
