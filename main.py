@@ -25,7 +25,7 @@ from astrbot.api.star import Context, Star, register
 
 logger = logging.getLogger("astrbot.plugin.anon_relay")
 
-__version__ = "1.3.0"
+__version__ = "1.5.0"
 
 
 @dataclass
@@ -36,7 +36,10 @@ class AnonRelayConfig:
     start_keywords: str = "开启匿名模式"       # 开启匿名模式的关键词（逗号分隔多个）
     stop_keywords: str = "关闭匿名模式,结束倾诉"  # 关闭会话的关键词（逗号分隔多个）
     target_group_ids: str = ""                # 私聊目标群 + 群聊未匹配规则时的统一兜底目标
-    group_target_rules: str = ""              # 群聊映射规则，如 源群号:目标群1,目标群2;源群号2:（空目标=转述回本群）
+    group_target_rules: str = ""              # 群聊会话映射规则（群内开启时生效），如 源群号:目标群1,目标群2;源群号2:
+    user_target_rules: str = ""               # 私聊用户映射规则（优先）：用户ID:目标群1,目标群2;用户ID2:
+    auto_detect_groups: bool = True           # 私聊时自动识别倾诉者所在群并转述到这些群（支持 OneBot/QQ）
+    detect_group_ids: str = ""                # 自动识别的候选群（逗号分隔；留空=机器人所在全部群）
     relay_format: str = "【{name}】：{content}"  # 转述格式模板，占位符 {name} {content} {time}
     nicknames: str = "番茄,苹果,橘子,草莓,葡萄,西瓜,芒果,菠萝,樱桃,柠檬,蓝莓,桃子,雪梨,石榴,柚子,椰子,荔枝,哈密瓜,火龙果,猕猴桃,香蕉"  # 随机昵称池
     anon_name_prefix: str = "匿名者"           # 昵称池为空时的兜底编号前缀（匿名者-001）
@@ -50,6 +53,11 @@ class AnonRelayConfig:
     notify_group_on_start: bool = False       # 开启匿名模式时在目标群内播报一条提示
     max_msg_len: int = 500                    # 单条转述最大字数，超长自动分段发送
     session_timeout_min: int = 0              # 会话空闲超时（分钟），0 为不超时
+    admin_commands_enabled: bool = True       # 启用管理命令（禁言/解禁/永久禁用/解除禁用，仅管理员）
+    mute_default_min: int = 30                # 禁言默认时长（分钟）
+    censor_enabled: bool = True               # 脏话自动和谐
+    bad_words: str = "傻逼,煞笔,傻B,草泥马,操你妈,去死,贱人,白痴,智障,废物,他妈的,妈的,混蛋,滚蛋,王八蛋,狗东西,杂种,婊子,你妈"  # 和谐词库（逗号分隔）
+    censor_mask: str = "**"                   # 和谐替换符号
 
 
 @register("astrbot_plugin_anon_relay", "guishe", "匿名倾诉转述：私聊/群聊开启匿名模式后，将内容以匿名身份转述到指定群聊", __version__)
@@ -63,6 +71,10 @@ class AnonRelay(Star):
         self.user_nicknames = {}
         self.counter = 0
         self._kv_loaded = False
+        self._member_cache = {}
+        self._member_cache_ttl = 600
+        self.muted = {}
+        self.banned = []
 
     # ------------------------------------------------------------------ #
     # 配置
@@ -118,6 +130,8 @@ class AnonRelay(Star):
             self.sessions = dict(await self.get_kv_data("sessions", {}) or {})
             self.user_nicknames = dict(await self.get_kv_data("user_nicknames", {}) or {})
             self.counter = int(await self.get_kv_data("counter", 0) or 0)
+            self.muted = dict(await self.get_kv_data("muted", {}) or {})
+            self.banned = list(await self.get_kv_data("banned", []) or [])
         except Exception as e:
             self.logger.warning("读取插件存储失败，本次运行会话数据仅保存在内存: %s", e)
         self._kv_loaded = True
@@ -127,6 +141,8 @@ class AnonRelay(Star):
             await self.put_kv_data("sessions", self.sessions)
             await self.put_kv_data("user_nicknames", self.user_nicknames)
             await self.put_kv_data("counter", self.counter)
+            await self.put_kv_data("muted", self.muted)
+            await self.put_kv_data("banned", self.banned)
         except Exception as e:
             self.logger.warning("保存会话数据失败: %s", e)
 
@@ -138,8 +154,17 @@ class AnonRelay(Star):
     async def on_message(self, event: AstrMessageEvent):
         if not self._cfg_bool("enabled"):
             return
+        await self._ensure_kv_loaded()
+        # 管理命令：禁言/解禁/永久禁用/解除禁用（仅管理员，私聊与群聊均可）
+        if self._cfg_bool("admin_commands_enabled"):
+            cmd_reply, cmd_consumed = await self._try_admin_command(event)
+            if cmd_consumed:
+                self._stop_event(event)
+                self._block_default_llm(event)
+                if cmd_reply:
+                    yield event.plain_result(cmd_reply)
+                return
         if self._is_private_chat(event):
-            await self._ensure_kv_loaded()
             user_key = self._user_key(event)
             key = f"p:{user_key}"
             reply, consume = await self._handle_message(event, key, user_key, private=True)
@@ -152,7 +177,6 @@ class AnonRelay(Star):
             group_id = self._get_group_id(event)
             if not group_id:
                 return
-            await self._ensure_kv_loaded()
             user_key = self._user_key(event)
             key = f"g:{user_key}:{group_id}"
             reply, consume = await self._handle_message(event, key, user_key, private=False)
@@ -163,6 +187,56 @@ class AnonRelay(Star):
                 # 群内会话的控制消息与回执优先私聊悄悄话，私聊不可达时改在群内提示
                 if not await self._whisper(event, reply):
                     yield event.plain_result(reply)
+
+    # ------------------------------------------------------------------ #
+    # 管理命令（禁言 / 解禁 / 永久禁用 / 解除禁用）
+    # ------------------------------------------------------------------ #
+
+    async def _try_admin_command(self, event):
+        """识别管理命令。返回 (回复文本或 None, 是否已消费该消息)。"""
+        text = event.get_message_str().strip()
+        # 命令词后必须紧跟空格/冒号/结尾，避免把「解禁后内容」这类消息误判为命令
+        m = re.match(r"^(禁言|解禁|永久禁用|解除禁用)(?=[\s:：]|$)\s*[:：]?\s*(\S+?)\s*(\d*)$", text)
+        if not m:
+            return None, False
+        action, nickname, minutes = m.group(1), m.group(2), m.group(3)
+        if not self._is_admin(event):
+            return "⚠️ 你没有管理员权限，无法执行该操作。", True
+        if action == "禁言":
+            mins = int(minutes) if minutes else (self._cfg_int("mute_default_min") or 30)
+            self.muted[nickname] = time.time() + mins * 60
+            await self._save_sessions()
+            return f"🔇 已禁言匿名身份「{nickname}」{mins} 分钟。", True
+        if action == "解禁":
+            if nickname in self.muted:
+                del self.muted[nickname]
+                await self._save_sessions()
+                return f"✅ 已解除「{nickname}」的禁言。", True
+            return f"「{nickname}」当前没有被禁言。", True
+        if action == "永久禁用":
+            if nickname not in self.banned:
+                self.banned.append(nickname)
+                await self._save_sessions()
+            return f"🚫 已永久禁用匿名身份「{nickname}」，其无法再开启匿名模式。", True
+        if action == "解除禁用":
+            if nickname in self.banned:
+                self.banned.remove(nickname)
+                await self._save_sessions()
+                return f"✅ 已解除「{nickname}」的永久禁用。", True
+            return f"「{nickname}」未被永久禁用。", True
+        return None, False
+
+    @staticmethod
+    def _is_admin(event):
+        try:
+            if hasattr(event, "is_admin"):
+                return bool(event.is_admin())
+        except Exception:
+            pass
+        try:
+            return getattr(event, "role", "") == "admin"
+        except Exception:
+            return False
 
     async def _handle_message(self, event, key, user_key, private):
         text = event.get_message_str().strip()
@@ -211,10 +285,15 @@ class AnonRelay(Star):
     async def _start_session(self, event, key, user_key, private):
         if key in self.sessions:
             return "你已处于匿名模式，直接发送内容即可。", True
-        targets = self._target_groups() if private else self._targets_for_group(self._get_group_id(event))
+        if private:
+            targets = await self._targets_for_private(event)
+        else:
+            targets = self._targets_for_group(self._get_group_id(event))
         if not targets:
             return "⚠️ 管理员还未在插件设置中填写「目标群号」，暂时无法开启匿名模式。", True
         nickname = self._pick_nickname(user_key)
+        if nickname in self.banned:
+            return "🚫 该匿名身份已被管理员永久禁用，无法开启匿名模式。", True
         self.sessions[key] = {
             "nickname": nickname,
             "started_at": time.time(),
@@ -277,6 +356,29 @@ class AnonRelay(Star):
         return pool
 
     # ------------------------------------------------------------------ #
+    # 脏话和谐
+    # ------------------------------------------------------------------ #
+
+    def _censor(self, text):
+        """将词库中的脏话替换为和谐符号。"""
+        if not text or not self._cfg_bool("censor_enabled"):
+            return text
+        words = self._bad_words()
+        if not words:
+            return text
+        mask = str(self._cfg("censor_mask") or "**")
+        pattern = re.compile("|".join(re.escape(w) for w in words), re.IGNORECASE)
+        return pattern.sub(mask, text)
+
+    def _bad_words(self):
+        words = []
+        for part in re.split(r"[,，、;；\s]+", str(self._cfg("bad_words") or "")):
+            p = part.strip()
+            if p and p not in words:
+                words.append(p)
+        return words
+
+    # ------------------------------------------------------------------ #
     # 转述
     # ------------------------------------------------------------------ #
 
@@ -295,16 +397,33 @@ class AnonRelay(Star):
             await self._save_sessions()
             return "暂不支持转述这类消息（仅支持文字和图片），本会话内不再重复提示。", True
         if private:
-            targets = self._target_groups()
+            targets = await self._targets_for_private(event)
         else:
             targets = self._targets_for_group(self._get_group_id(event))
         if not targets:
             return "⚠️ 目标群聊未配置，无法转述，请联系管理员。", True
 
-        text = event.get_message_str().strip()
+        # 管理状态检查：永久禁用 / 禁言
+        nickname = session.get("nickname", "")
+        if nickname in self.banned:
+            return None, True  # 永久禁用：静默丢弃
+        mute_until = self.muted.get(nickname)
+        if mute_until and mute_until > time.time():
+            if not session.get("muted_notified"):
+                session["muted_notified"] = True
+                await self._save_sessions()
+                remain = int((mute_until - time.time()) / 60) + 1
+                return f"🔇 你已被禁言，剩余约 {remain} 分钟。", True
+            return None, True  # 禁言中：静默丢弃
+        if session.get("muted_notified"):
+            # 禁言已结束，清除提示标记
+            session["muted_notified"] = False
+            await self._save_sessions()
+
+        text = self._censor(event.get_message_str().strip())
         images = [c for c in parts if isinstance(c, Image)]
         max_len = self._cfg_int("max_msg_len") or 500
-        msgs = self._build_relay_messages(session["nickname"], text, images, max_len)
+        msgs = self._build_relay_messages(nickname, text, images, max_len)
 
         ok = True
         for gid in targets:
@@ -381,15 +500,34 @@ class AnonRelay(Star):
         return groups
 
     def _targets_for_group(self, group_id):
-        """群聊转述目标：优先匹配映射规则，未匹配时使用统一目标（target_group_ids）。"""
-        rules = self._parse_group_rules()
+        """群聊会话转述目标：优先匹配映射规则，未匹配时使用统一目标（target_group_ids）。"""
+        rules = self._parse_mapping_rules(str(self._cfg("group_target_rules") or ""))
         if group_id in rules:
             return rules[group_id]
         return self._target_groups()
 
-    def _parse_group_rules(self):
-        """解析群聊映射规则。格式：源群号:目标群1,目标群2;源群号2:（空目标=转述回本群）。"""
-        raw = str(self._cfg("group_target_rules") or "").replace("：", ":")
+    async def _targets_for_private(self, event):
+        """私聊会话转述目标：① 用户映射规则 ② 自动识别用户所在群 ③ 统一目标（target_group_ids）。"""
+        rules = self._parse_mapping_rules(str(self._cfg("user_target_rules") or ""))
+        try:
+            user_id = str(event.get_sender_id() or "")
+        except Exception:
+            user_id = ""
+        if user_id and user_id in rules:
+            return rules[user_id]
+        if self._cfg_bool("auto_detect_groups") and user_id:
+            try:
+                detected = await self._detect_user_groups(event, user_id)
+            except Exception:
+                detected = []
+            if detected:
+                return detected
+        return self._target_groups()
+
+    @staticmethod
+    def _parse_mapping_rules(raw):
+        """解析映射规则。格式：源:目标1,目标2;源2:（目标留空=转述回源本身）。"""
+        raw = str(raw or "").replace("：", ":")
         rules = {}
         for part in re.split(r"[;；\n]+", raw):
             part = part.strip()
@@ -405,6 +543,62 @@ class AnonRelay(Star):
             if src and src not in rules:
                 rules[src] = targets
         return rules
+
+    # ------------------------------------------------------------------ #
+    # 自动识别用户所在群（OneBot/QQ 成员查询，带缓存）
+    # ------------------------------------------------------------------ #
+
+    async def _detect_user_groups(self, event, user_id):
+        """查询倾诉者属于哪些候选群，返回群号列表；失败或平台不支持时返回空列表。"""
+        try:
+            if event.get_platform_name() != "aiocqhttp":
+                return []
+        except Exception:
+            return []
+        cache_key = f"{event.get_platform_id()}:{user_id}"
+        now = time.time()
+        hit = self._member_cache.get(cache_key)
+        if hit and now - hit[0] < self._member_cache_ttl:
+            return hit[1]
+        groups = []
+        try:
+            platform = self.context.get_platform_inst(event.get_platform_id())
+            client = platform.get_client()
+            candidates = await self._detect_candidates(client)
+            for gid in candidates:
+                if await self._user_in_group(client, gid, user_id):
+                    groups.append(str(gid))
+        except Exception as e:
+            self.logger.info("自动识别用户所在群失败，回退统一目标: %s", e)
+            return []
+        self._member_cache[cache_key] = (now, groups)
+        return groups
+
+    async def _detect_candidates(self, client):
+        """候选群：优先用 detect_group_ids，留空则取机器人所在全部群。"""
+        raw = str(self._cfg("detect_group_ids") or "")
+        if raw.strip():
+            return [g for g in re.split(r"[,，、;；\s]+", raw) if g.strip()]
+        try:
+            group_list = await client.get_group_list()
+        except Exception:
+            try:
+                group_list = await client.call_action(action="get_group_list")
+            except Exception:
+                return []
+        return [str(g.get("group_id")) for g in (group_list or [])]
+
+    async def _user_in_group(self, client, gid, user_id):
+        try:
+            members = await client.get_group_member_list(group_id=int(gid))
+        except Exception:
+            try:
+                members = await client.call_action(
+                    action="get_group_member_list", group_id=int(gid), no_cache=False
+                )
+            except Exception:
+                return False
+        return any(str(m.get("user_id")) == str(user_id) for m in (members or []))
 
     # ------------------------------------------------------------------ #
     # 发送
