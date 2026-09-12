@@ -1,4 +1,4 @@
-name: astrbot_plugin_anon_relay
+name: astrbot_plugin_anon_shudong
 display_name: 匿名树洞
 short_desc: 私聊自动进入匿名模式，倾诉内容以随机昵称按自定义格式转述到指定群聊——不是转发聊天记录，群成员看不到任何真实身份
 desc: >-
@@ -12,10 +12,10 @@ help: >-
   白名单外用户私聊直接进入匿名模式；白名单用户自由聊天，发送「开启匿名模式」可主动匿名。
   发送「关闭匿名模式」或「结束倾诉」结束。管理员可发送「禁言 昵称 分钟」「永久禁用 昵称」等命令管理匿名身份。
   转述格式、随机昵称池、群聊/用户映射、自动识别所在群、私聊白名单、审查词库、和谐词库均可在插件设置面板中调整。
-version: 1.11.0
+version: 2.0.0
 author: yuntaojinghong
-repo: https://github.com/yuntaojinghong/astrbot_plugin_anon_relay
-social_link: https://yuntaojinghong.github.io/astrbot_plugin_anon_relay/
+repo: https://github.com/yuntaojinghong/astrbot_plugin_anon_shudong
+social_link: https://yuntaojinghong.github.io/astrbot_plugin_anon_shudong/
 astrbot_version: ">=4.16,<5"
 support_platforms:
   - aiocqhttp

@@ -4,12 +4,12 @@
 
 # 匿名树洞
 
-**astrbot_plugin_anon_relay** · 给群聊一个可以放心说话的地方
+**astrbot_plugin_anon_shudong** · 给群聊一个可以放心说话的地方
 
 白名单外的人私聊机器人即自动进入匿名模式，倾诉内容以随机昵称重新拼装成一条新消息转述到群聊。
 **不是转发聊天记录**——群成员只看得到一个水果昵称。
 
-[![Release](https://img.shields.io/github/v/release/yuntaojinghong/astrbot_plugin_anon_relay?color=4B7BE5&label=release)](https://github.com/yuntaojinghong/astrbot_plugin_anon_relay/releases)
+[![Release](https://img.shields.io/github/v/release/yuntaojinghong/astrbot_plugin_anon_shudong?color=683986&label=release)](https://github.com/yuntaojinghong/astrbot_plugin_anon_shudong/releases)
 [![License](https://img.shields.io/badge/license-MIT-5FE3C8)](LICENSE)
 [![AstrBot](https://img.shields.io/badge/AstrBot-%3E%3D4.16%20%3C5-6A4BE0)](https://github.com/AstrBotDevs/AstrBot)
 [![Tests](https://img.shields.io/badge/tests-101%20passed-3fb950)](tests/test_logic.py)
@@ -73,8 +73,8 @@
 
 **方式一：下载 zip 上传（推荐）**
 
-1. 下载 [最新安装包](https://github.com/yuntaojinghong/astrbot_plugin_anon_relay/releases/latest/download/astrbot_plugin_anon_relay.zip)
-   （zip 文件名需保持为 `astrbot_plugin_anon_relay.zip`，AstrBot 以 zip 文件名作为插件目录名）
+1. 下载 [最新安装包](https://github.com/yuntaojinghong/astrbot_plugin_anon_shudong/releases/latest/download/astrbot_plugin_anon_shudong.zip)
+   （zip 文件名需保持为 `astrbot_plugin_anon_shudong.zip`，AstrBot 以 zip 文件名作为插件目录名）
 2. WebUI → 插件管理 → 安装插件 → 上传该 zip
 3. 在插件管理中**重载插件**
 4. 进入插件**配置面板**填写「目标群号」，保存后再次重载插件生效
@@ -82,11 +82,11 @@
 **方式二：从 GitHub 仓库安装**
 
 WebUI → 插件管理 → 安装插件 → 从 GitHub 仓库安装，填入
-`https://github.com/yuntaojinghong/astrbot_plugin_anon_relay`（要求服务器能访问 GitHub）。
+`https://github.com/yuntaojinghong/astrbot_plugin_anon_shudong`（要求服务器能访问 GitHub）。
 
 **方式三：手动复制文件夹**
 
-1. 将 `astrbot_plugin_anon_relay` 整个文件夹放入 AstrBot 的插件目录：
+1. 将 `astrbot_plugin_anon_shudong` 整个文件夹放入 AstrBot 的插件目录：
    - 桌面版：`C:\Users\<用户名>\.astrbot\data\plugins\`
    - 源码 / systemd 部署：`<AstrBot 根目录>/data/plugins/`
    - Docker：容器内 `/AstrBot/data/plugins/`（或挂载卷放入宿主机对应目录）
@@ -309,6 +309,16 @@ python scripts/build_release.py
 | `.github/workflows/` | CI 与自动发版流程 |
 
 AstrBot 运行时只需要三个文件：`main.py`、`metadata.yaml`、`_conf_schema.json`（外加可选的 `logo.png`）。
+
+## 支持作者
+
+- **点个 Star** —— 不花钱的支持，只是让更多人在插件市场里看到它：
+  [github.com/yuntaojinghong/astrbot_plugin_anon_shudong](https://github.com/yuntaojinghong/astrbot_plugin_anon_shudong)
+- **请我喝杯咖啡** —— 微信赞赏码在[项目主页的支持区块](https://yuntaojinghong.github.io/astrbot_plugin_anon_shudong/#support)，
+  金额随意，纯粹心意。
+
+捐赠完全自愿，**不影响任何功能的可用性**，也不作为获取功能或优先支持的条件。本项目始终以
+[MIT](LICENSE) 许可证开源，你可以自由使用、修改与分发。
 
 ## 版本记录
 

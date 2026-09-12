@@ -1,0 +1,3 @@
+# GitHub 仓库页会据此显示 Sponsor 按钮。
+# 微信赞赏码没有可用的公开 URL，因此指向项目主页的「支持作者」区块。
+custom: ["https://yuntaojinghong.github.io/astrbot_plugin_anon_shudong/#support"]

@@ -640,7 +640,7 @@ async def main():
     await check("文件获取失败提示", len(rs) == 1 and "无法获取上传的文件" in rs[0])
 
     # 52. 设置页上传的词库文件（type=file 配置）：解析生效并用于和谐
-    file_dir52 = os.path.join(TEST_DATA_ROOT, "astrbot_plugin_anon_relay", "files", "bad_words_file")
+    file_dir52 = os.path.join(TEST_DATA_ROOT, "astrbot_plugin_anon_shudong", "files", "bad_words_file")
     os.makedirs(file_dir52, exist_ok=True)
     file52 = os.path.join(file_dir52, "词库.txt")
     with open(file52, "w", encoding="utf-8") as f:

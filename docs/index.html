@@ -264,10 +264,23 @@ details p{margin:0;padding:0 18px 17px 49px;color:var(--text-2);font-size:14.5px
 
 /* ---------------- 支持 ---------------- */
 .support{text-align:center}
-.support .card{display:inline-block;text-align:center;padding:32px 36px;max-width:520px}
-.qr{width:192px;height:192px;border-radius:14px;border:1px solid var(--line);box-shadow:var(--sh-1);background:#fff;padding:6px;transition:transform .3s}
-.qr:hover{transform:scale(1.035) rotate(-1deg)}
-.star-btn{margin-bottom:22px}
+.sup-grid{display:grid;grid-template-columns:1fr 1px 1fr;align-items:stretch;max-width:840px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:var(--r-xl);box-shadow:var(--sh-2);overflow:hidden;text-align:center}
+.sup-col{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 30px;min-width:0}
+.sup-col:last-child{background:linear-gradient(180deg,rgba(255,217,160,.13),rgba(240,136,148,.08))}
+.sup-split{width:1px;background:var(--grad-line);opacity:.55}
+.sup-ico{display:grid;place-items:center;width:54px;height:54px;border-radius:17px;margin-bottom:15px;color:#8A4A72;background:var(--grad-soft);border:1px solid rgba(240,136,148,.30);box-shadow:0 6px 18px rgba(104,57,134,.09)}
+.sup-ico svg{width:26px;height:26px}
+.sup-col h3{font-size:17px;margin:0 0 7px}
+.sup-col p{margin:0 0 20px;color:var(--text-2);font-size:14px;line-height:1.72;max-width:266px}
+.qr-box{background:#fff;border:1px solid var(--line);border-radius:20px;padding:8px;box-shadow:var(--sh-1);transition:transform .34s cubic-bezier(.2,.8,.2,1),box-shadow .34s}
+.qr-box:hover{transform:translateY(-4px) scale(1.02);box-shadow:var(--sh-2)}
+.qr{display:block;width:212px;height:212px;border-radius:13px}
+.sup-col .qr-cap{margin:13px 0 0;font-size:13px;color:var(--text-3);letter-spacing:.02em}
+@media(max-width:720px){
+  .sup-grid{grid-template-columns:1fr;grid-template-rows:auto 1px auto}
+  .sup-split{width:auto;height:1px}
+  .sup-col{padding:30px 22px}
+}
 
 /* ---------------- 页脚 ---------------- */
 footer{border-top:1px solid var(--line);padding:40px 0 48px;color:var(--text-3);font-size:14px;text-align:center;background:rgba(255,255,255,.55)}
@@ -351,7 +364,7 @@ footer a{color:var(--text-2)}
     </p>
     <div class="cta">
       <a class="btn primary" href="#install">↓ 立即安装</a>
-      <a class="btn ghost" href="https://github.com/yuntaojinghong/astrbot_plugin_anon_relay">在 GitHub 查看</a>
+      <a class="btn ghost" href="https://github.com/yuntaojinghong/astrbot_plugin_anon_shudong">在 GitHub 查看</a>
     </div>
     <div class="stats reveal">
       <div class="stat"><div class="v" data-count="101">0</div><div class="l">离线回归测试</div></div>
@@ -847,12 +860,12 @@ footer a{color:var(--text-2)}
         <div class="hint">展开步骤<span class="ar">▼</span></div>
         <div class="card-more">
           <ul>
-            <li>下载 <a href="https://github.com/yuntaojinghong/astrbot_plugin_anon_relay/releases/latest/download/astrbot_plugin_anon_relay.zip">astrbot_plugin_anon_relay.zip</a></li>
+            <li>下载 <a href="https://github.com/yuntaojinghong/astrbot_plugin_anon_shudong/releases/latest/download/astrbot_plugin_anon_shudong.zip">astrbot_plugin_anon_shudong.zip</a></li>
             <li>WebUI → 插件管理 → 安装插件 → 上传该 zip</li>
             <li>在插件管理中<strong>重载插件</strong></li>
             <li>进入配置面板填「目标群号」，保存后再次重载</li>
           </ul>
-          <div class="kv">zip 文件名需保持为 <code>astrbot_plugin_anon_relay.zip</code>，AstrBot 以文件名作为插件目录名。</div>
+          <div class="kv">zip 文件名需保持为 <code>astrbot_plugin_anon_shudong.zip</code>，AstrBot 以文件名作为插件目录名。</div>
         </div>
       </div>
 
@@ -864,7 +877,7 @@ footer a{color:var(--text-2)}
         <div class="card-more">
           <ul>
             <li>WebUI → 插件管理 → 安装插件 → 从 GitHub 仓库安装</li>
-            <li>填入 <code>https://github.com/yuntaojinghong/astrbot_plugin_anon_relay</code></li>
+            <li>填入 <code>https://github.com/yuntaojinghong/astrbot_plugin_anon_shudong</code></li>
             <li>这种方式便于后续一键更新</li>
           </ul>
         </div>
@@ -1004,13 +1017,32 @@ footer a{color:var(--text-2)}
     <div class="sec-head reveal">
       <span class="eyebrow">Support</span>
       <h2>如果它帮到了你</h2>
-      <p>点个 Star，或者请我喝杯咖啡。</p>
+      <p>点个 Star 不花一分钱，请我喝杯咖啡是更暖的心意 —— 两种都真心感谢。</p>
     </div>
 
-    <div class="card reveal">
-      <a class="btn primary star-btn" href="https://github.com/yuntaojinghong/astrbot_plugin_anon_relay">⭐ 去 GitHub 点 Star</a>
-      <div><img class="qr" src="donate_qr.png" alt="赞赏码"></div>
-      <p style="margin-top:12px;font-size:14px;color:var(--text-3)">微信扫一扫 · 金额随意 · 纯粹心意</p>
+    <div class="sup-grid reveal">
+      <div class="sup-col">
+        <div class="sup-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6l2.65 5.37 5.93.86-4.29 4.18 1.01 5.9L12 17.13l-5.3 2.78 1.01-5.9-4.29-4.18 5.93-.86z"/></svg>
+        </div>
+        <h3>给个 Star</h3>
+        <p>不花钱的支持，却能让更多人在插件市场里看到它。</p>
+        <a class="btn primary" href="https://github.com/yuntaojinghong/astrbot_plugin_anon_shudong" target="_blank" rel="noopener">⭐ 去 GitHub 点 Star</a>
+      </div>
+
+      <div class="sup-split" aria-hidden="true"></div>
+
+      <div class="sup-col">
+        <div class="sup-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h11v5.5A4.5 4.5 0 0 1 10.5 19h-2A4.5 4.5 0 0 1 4 14.5z"/><path d="M15 10.5h1.6a2.6 2.6 0 0 1 0 5.2H15"/><path d="M7 3.4c.62.83.62 1.56 0 2.39M10.4 3.4c.62.83.62 1.56 0 2.39"/></svg>
+        </div>
+        <h3>请我喝杯咖啡</h3>
+        <p>微信扫一扫，金额随意，纯粹心意。</p>
+        <div class="qr-box">
+          <img class="qr" src="donate_qr.png" alt="云涛惊鸿 的赞赏码" width="500" height="500" loading="lazy" decoding="async">
+        </div>
+        <p class="qr-cap">云涛惊鸿 的赞赏码</p>
+      </div>
     </div>
   </div>
 </section>
@@ -1020,13 +1052,13 @@ footer a{color:var(--text-2)}
 <footer>
   <div class="wrap">
     <div class="foot-links">
-      <a href="https://github.com/yuntaojinghong/astrbot_plugin_anon_relay">GitHub 仓库</a>
-      <a href="https://github.com/yuntaojinghong/astrbot_plugin_anon_relay/releases">版本发布</a>
-      <a href="https://github.com/yuntaojinghong/astrbot_plugin_anon_relay/blob/main/CHANGELOG.md">更新日志</a>
-      <a href="https://github.com/yuntaojinghong/astrbot_plugin_anon_relay/blob/main/LICENSE">MIT 许可证</a>
+      <a href="https://github.com/yuntaojinghong/astrbot_plugin_anon_shudong">GitHub 仓库</a>
+      <a href="https://github.com/yuntaojinghong/astrbot_plugin_anon_shudong/releases">版本发布</a>
+      <a href="https://github.com/yuntaojinghong/astrbot_plugin_anon_shudong/blob/main/CHANGELOG.md">更新日志</a>
+      <a href="https://github.com/yuntaojinghong/astrbot_plugin_anon_shudong/blob/main/LICENSE">MIT 许可证</a>
       <a href="https://github.com/AstrBotDevs/AstrBot">AstrBot</a>
     </div>
-    <div>匿名树洞 · astrbot_plugin_anon_relay · 用 <span class="grad-text" style="font-weight:800">AstrBot Star API</span> 构建</div>
+    <div>匿名树洞 · astrbot_plugin_anon_shudong · 用 <span class="grad-text" style="font-weight:800">AstrBot Star API</span> 构建</div>
   </div>
 </footer>
 

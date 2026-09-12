@@ -44,7 +44,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/astrbot_plugin_anon_relay.zip
-            dist/astrbot_plugin_anon_relay.tar.gz
+            dist/astrbot_plugin_anon_shudong.zip
+            dist/astrbot_plugin_anon_shudong.tar.gz
           generate_release_notes: true
           draft: false

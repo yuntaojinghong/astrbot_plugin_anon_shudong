@@ -4,10 +4,10 @@
     python scripts/build_release.py
 
 输出（写入仓库根目录的 dist/）:
-    dist/astrbot_plugin_anon_relay.zip      —— 解压即得插件文件夹，放入 AstrBot/data/plugins/
-    dist/astrbot_plugin_anon_relay.tar.gz   —— 同样的内容，供 tar 用户
+    dist/astrbot_plugin_anon_shudong.zip      —— 解压即得插件文件夹，放入 AstrBot/data/plugins/
+    dist/astrbot_plugin_anon_shudong.tar.gz   —— 同样的内容，供 tar 用户
 
-注意：压缩包外层套一层 astrbot_plugin_anon_relay/ 目录，符合 AstrBot 的安装习惯
+注意：压缩包外层套一层 astrbot_plugin_anon_shudong/ 目录，符合 AstrBot 的安装习惯
 （AstrBot 以 zip 文件名作为插件目录名，因此文件名不可改动）。
 仅打包插件运行所需文件：docs/（说明站）、scripts/、tests/ 与 CI 配置均不进入安装包。
 """
@@ -20,7 +20,7 @@ import zipfile
 
 # 仓库根目录（本脚本位于 <repo>/scripts/ 下）
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PKG_NAME = "astrbot_plugin_anon_relay"
+PKG_NAME = "astrbot_plugin_anon_shudong"
 SOURCE = REPO_ROOT
 DIST = os.path.join(REPO_ROOT, "dist")
 

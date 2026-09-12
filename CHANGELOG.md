@@ -1,7 +1,32 @@
 # Changelog
 
-本文件记录 astrbot_plugin_anon_relay（匿名树洞）的所有重要变更。
+本文件记录 astrbot_plugin_anon_shudong（匿名树洞）的所有重要变更。
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+
+## [2.0.0] - 2026-09-13
+
+### Changed
+
+- **破坏性变更：插件唯一标识名与仓库名由 `astrbot_plugin_anon_relay` 改为
+  `astrbot_plugin_anon_shudong`**，与展示名「匿名树洞」对齐。AstrBot 会把它识别为一个**新插件**，
+  因此已安装的用户需要重新安装，原有插件配置与匿名编号映射**不会自动迁移**。
+- 安装包文件名随之变为 `astrbot_plugin_anon_shudong.zip`（AstrBot 以 zip 文件名作为插件目录名），
+  下载与导入地址同步更新。
+- 仓库地址、Pages 说明站与 README 徽章链接一并迁移到新名；旧地址由 GitHub 自动重定向。
+- README 徽章配色由旧冷色 `#4B7BE5` 改为与图标同源的暖紫 `#683986`。
+
+### Added
+
+- 项目主页新增「支持作者」区块：左栏一键跳转 GitHub 点 Star，右栏为微信赞赏码，
+  窄屏自动上下堆叠。README 增加「支持作者」小节，并明确「捐赠完全自愿、不影响任何
+  功能的可用性」，`.github/FUNDING.yml` 让仓库页显示 Sponsor 按钮。
+- 赞赏码更换为裁剪后的纯二维码（`docs/donate_qr.png`）：原图 1037x1037 中二维码本体
+  仅占 432x432，缩到 192px 展示时码本体只剩约 82px，手机很难扫到；裁出码本体并补足
+  白边后输出 500x500，展示尺寸提升到 212px，扫码成功率显著提高。
+
+### 说明
+
+- 历史变更条目中出现的旧名 `astrbot_plugin_anon_relay` 保留原样，以如实反映当时的命名。
 
 ## [1.11.0] - 2026-09-13
 

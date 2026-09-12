@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="匿名树洞 插件图标">
-  <title>匿名树洞 astrbot_plugin_anon_relay</title>
+  <title>匿名树洞 astrbot_plugin_anon_shudong</title>
   <desc>暖色日落渐变上，一簇茂盛的叶子长在树桩上，树桩中央是一个正圆的树洞，洞里透出一颗暖金色发着光的心；四周点缀金色萤火。</desc>
   <defs>
     <!-- 主渐变：暖蜜 → 蜜桃 → 玫瑰 → 暖紫，与 make_anon_logo.py 的 BG_STOPS 一致 -->

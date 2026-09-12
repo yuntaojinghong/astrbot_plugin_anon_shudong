@@ -45,17 +45,17 @@ jobs:
           python - <<'PY'
           import zipfile, sys
           required = {
-              "astrbot_plugin_anon_relay/main.py",
-              "astrbot_plugin_anon_relay/metadata.yaml",
-              "astrbot_plugin_anon_relay/_conf_schema.json",
-              "astrbot_plugin_anon_relay/logo.png",
+              "astrbot_plugin_anon_shudong/main.py",
+              "astrbot_plugin_anon_shudong/metadata.yaml",
+              "astrbot_plugin_anon_shudong/_conf_schema.json",
+              "astrbot_plugin_anon_shudong/logo.png",
           }
-          names = set(zipfile.ZipFile("dist/astrbot_plugin_anon_relay.zip").namelist())
+          names = set(zipfile.ZipFile("dist/astrbot_plugin_anon_shudong.zip").namelist())
           missing = required - names
           if missing:
               print("缺少必需文件:", sorted(missing))
               sys.exit(1)
-          leaked = [n for n in names if n.startswith("astrbot_plugin_anon_relay/data/") or n.endswith(".pyc")]
+          leaked = [n for n in names if n.startswith("astrbot_plugin_anon_shudong/data/") or n.endswith(".pyc")]
           if leaked:
               print("压缩包包含不应分发的文件:", leaked)
               sys.exit(1)
@@ -65,6 +65,6 @@ jobs:
       - name: 上传压缩包（供人工检查）
         uses: actions/upload-artifact@v4
         with:
-          name: astrbot_plugin_anon_relay
-          path: dist/astrbot_plugin_anon_relay.zip
+          name: astrbot_plugin_anon_shudong
+          path: dist/astrbot_plugin_anon_shudong.zip
           retention-days: 7
