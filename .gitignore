@@ -8,6 +8,10 @@ venv/
 # 插件运行时数据（会话状态，包含匿名编号映射，不应入库）
 sessions.json
 
+# AstrBot 运行时数据目录（全局配置 cmd_config.json 含面板口令哈希、t2i 模板等，
+# 属于 AstrBot 而非本插件，严禁入库）
+data/
+
 # 系统/编辑器
 .DS_Store
 Thumbs.db
