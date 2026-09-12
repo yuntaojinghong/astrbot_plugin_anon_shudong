@@ -30,7 +30,7 @@ from astrbot.api.star import Context, Star, register
 
 logger = logging.getLogger("astrbot.plugin.anon_relay")
 
-__version__ = "1.9.0"
+__version__ = "1.9.1"
 
 
 @dataclass
@@ -71,7 +71,7 @@ class AnonRelayConfig:
     review_words_file: list = field(default_factory=list)  # 设置页上传的审查词库文件（files/ 相对路径列表）
 
 
-@register("astrbot_plugin_anon_relay", "guishe", "匿名树洞：私聊/群聊开启匿名模式后，把倾诉内容以匿名身份转述到指定群聊，群成员看不到真实身份", __version__)
+@register("astrbot_plugin_anon_relay", "yuntaojinghong", "匿名树洞：私聊/群聊开启匿名模式后，把倾诉内容以匿名身份转述到指定群聊，群成员看不到真实身份", __version__)
 class AnonRelay(Star):
     def __init__(self, context: Context, config=None):
         super().__init__(context)

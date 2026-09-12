@@ -5,6 +5,14 @@
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-09-12
+
+### Changed
+
+- `metadata.yaml` 的 `author` 由 `guishe` 改为 `yuntaojinghong`，与仓库归属保持一致；同步更新
+  `main.py` 的 `@register` 作者与 `LICENSE` 版权人。
+- `metadata.yaml` 新增 `tags`（匿名 / 树洞 / 隐私保护 / 群聊 / 匿名转述），提升插件市场搜索命中率。
+
 ## [1.9.0] - 2026-09-13
 
 ### Added
