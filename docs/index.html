@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>匿名树洞 · AstrBot 匿名倾诉转述插件</title>
+<meta name="description" content="AstrBot 插件「匿名树洞」：白名单外用户私聊机器人即自动进入匿名模式，倾诉内容以随机昵称重新拼装成新消息转述到群聊，不是转发聊天记录，群成员看不到任何真实身份。">
+<meta name="theme-color" content="#4B7BE5">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="logo.png">
+<meta property="og:title" content="匿名树洞 · AstrBot 匿名倾诉转述插件">
+<meta property="og:description" content="给群聊一个可以放心说话的地方。倾诉被匿名转述，真实身份不会出现在群里。">
+<meta property="og:image" content="logo.png">
+<style>
+:root{
+  --mint:#5FE3C8; --blue:#4B7BE5; --violet:#6A4BE0; --ink:#2B2472;
+  --bg:#F7F9FE; --card:#FFFFFF; --card-2:#F2F6FF;
+  --text:#1C2140; --text-2:#5A6489; --text-3:#8B94B5;
+  --line:rgba(43,36,114,.10);
+  --shadow-sm:0 1px 2px rgba(43,36,114,.06),0 4px 14px rgba(43,36,114,.06);
+  --shadow-md:0 6px 28px rgba(43,36,114,.10),0 1px 3px rgba(43,36,114,.06);
+  --shadow-lg:0 22px 60px rgba(43,36,114,.16);
+  --grad:linear-gradient(120deg,var(--mint),var(--blue) 46%,var(--violet));
+  --grad-soft:linear-gradient(120deg,rgba(95,227,200,.16),rgba(75,123,229,.16) 46%,rgba(106,75,224,.16));
+  --r:18px; --r-sm:12px; --r-lg:26px;
+  --max:1120px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:78px}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font:16px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
+code,kbd{font-family:ui-monospace,SFMono-Regular,"Cascadia Mono",Menlo,Consolas,monospace;font-size:.9em}
+code{background:var(--card-2);border:1px solid var(--line);border-radius:6px;padding:.12em .42em;color:#3A3F7A;word-break:break-all}
+h1,h2,h3{line-height:1.28;margin:0;letter-spacing:-.015em}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 22px}
+
+/* ---------------- 背景光斑 ---------------- */
+.orbs{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.orb{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5;will-change:transform}
+.orb.a{width:520px;height:520px;left:-140px;top:-160px;background:radial-gradient(circle,rgba(95,227,200,.55),transparent 68%);animation:floatA 20s ease-in-out infinite}
+.orb.b{width:620px;height:620px;right:-200px;top:120px;background:radial-gradient(circle,rgba(75,123,229,.42),transparent 68%);animation:floatB 26s ease-in-out infinite}
+.orb.c{width:480px;height:480px;left:32%;bottom:-220px;background:radial-gradient(circle,rgba(106,75,224,.34),transparent 68%);animation:floatC 23s ease-in-out infinite}
+@keyframes floatA{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(40px,50px,0) scale(1.12)}}
+@keyframes floatB{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(-60px,40px,0) scale(1.08)}}
+@keyframes floatC{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(50px,-46px,0) scale(1.14)}}
+.page{position:relative;z-index:1}
+
+/* ---------------- 导航 ---------------- */
+header.nav{position:sticky;top:0;z-index:50;backdrop-filter:saturate(180%) blur(14px);background:rgba(247,249,254,.82);border-bottom:1px solid transparent;transition:border-color .3s,box-shadow .3s}
+header.nav.stuck{border-bottom-color:var(--line);box-shadow:0 4px 24px rgba(43,36,114,.05)}
+.nav-in{display:flex;align-items:center;gap:14px;height:64px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;color:var(--text);letter-spacing:-.02em}
+.brand:hover{text-decoration:none}
+.brand img{width:32px;height:32px;border-radius:9px;box-shadow:var(--shadow-sm)}
+.nav-links{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+.nav-links a{color:var(--text-2);font-size:14.5px;font-weight:600;padding:7px 12px;border-radius:9px;transition:background .2s,color .2s;position:relative}
+.nav-links a:hover{background:var(--card-2);color:var(--text);text-decoration:none}
+.nav-links a.act{color:var(--blue);background:rgba(75,123,229,.10)}
+@media(max-width:760px){.nav-links a{padding:6px 9px;font-size:13.5px}.nav-links{gap:1px}}
+
+/* ---------------- 通用 ---------------- */
+section{padding:82px 0;position:relative}
+.sec-head{text-align:center;max-width:760px;margin:0 auto 44px}
+.eyebrow{display:inline-block;font-size:12.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);background:var(--grad-soft);border:1px solid rgba(75,123,229,.18);padding:5px 13px;border-radius:999px;margin-bottom:16px}
+.sec-head h2{font-size:clamp(24px,3.4vw,36px)}
+.sec-head p{color:var(--text-2);margin:14px 0 0;font-size:16.5px}
+.grad-text{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* ---------------- Hero ---------------- */
+.hero{padding:66px 0 74px;text-align:center}
+.hero .logo{width:118px;height:118px;border-radius:28px;box-shadow:var(--shadow-lg);animation:logoIn .9s cubic-bezier(.2,.8,.2,1) both, breathe 6s ease-in-out 1s infinite}
+@keyframes logoIn{from{opacity:0;transform:translateY(24px) scale(.9)}to{opacity:1;transform:none}}
+@keyframes breathe{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.hero h1{font-size:clamp(34px,6vw,62px);margin:26px 0 0;font-weight:900;letter-spacing:-.035em}
+.hero h1 .grad-text{background-size:220% 100%;animation:hueShift 9s ease-in-out infinite}
+@keyframes hueShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.hero .tag{font-size:clamp(16px,2.2vw,20px);color:var(--text-2);max-width:660px;margin:18px auto 0}
+.hero .tag strong{color:var(--text)}
+.hero .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:32px}
+.btn{display:inline-flex;align-items:center;gap:9px;padding:13px 26px;border-radius:14px;font-weight:700;font-size:15.5px;border:1px solid transparent;transition:transform .18s,box-shadow .25s,background .2s;position:relative;overflow:hidden}
+.btn:hover{text-decoration:none;transform:translateY(-2px)}
+.btn.primary{background:var(--grad);color:#fff;box-shadow:0 10px 28px rgba(75,123,229,.34);background-size:200% 100%}
+.btn.primary:hover{box-shadow:0 16px 38px rgba(75,123,229,.42)}
+.btn.primary::after{content:"";position:absolute;top:0;left:-140%;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.42),transparent);transform:skewX(-18deg);animation:shine 3.6s ease-in-out infinite}
+@keyframes shine{0%,60%{left:-140%}100%{left:150%}}
+.btn.ghost{background:var(--card);color:var(--text);border-color:var(--line);box-shadow:var(--shadow-sm)}
+.btn.ghost:hover{border-color:rgba(75,123,229,.35)}
+.chips{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:26px}
+.chip{font-size:13px;font-weight:700;color:var(--text-2);background:var(--card);border:1px solid var(--line);padding:6px 13px;border-radius:999px;box-shadow:var(--shadow-sm)}
+.chip b{color:var(--blue)}
+
+/* ---------------- 滚动浮现 ---------------- */
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.8,.2,1),transform .7s cubic-bezier(.2,.8,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* ---------------- 卡片网格 ---------------- */
+.grid{display:grid;gap:16px}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+@media(max-width:940px){.g3,.g4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:620px){.g3,.g4,.g2{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;transition:transform .28s cubic-bezier(.2,.8,.2,1),box-shadow .28s,border-color .28s}
+.card::before{content:"";position:absolute;inset:0;background:radial-gradient(340px circle at var(--mx,50%) var(--my,0%),rgba(75,123,229,.10),transparent 62%);opacity:0;transition:opacity .3s}
+.card:hover{transform:translateY(-4px);box-shadow:var(--shadow-md);border-color:rgba(75,123,229,.24)}
+.card:hover::before{opacity:1}
+.card>*{position:relative}
+.ico{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:20px;background:var(--grad-soft);border:1px solid rgba(75,123,229,.16);margin-bottom:14px}
+.card h3{font-size:16.5px;margin-bottom:7px}
+.card p{margin:0;color:var(--text-2);font-size:14.5px;line-height:1.72}
+.card .hint{display:flex;align-items:center;gap:5px;margin-top:13px;font-size:13px;font-weight:700;color:var(--blue);cursor:pointer;user-select:none;transition:color .2s}
+.card .hint:hover{color:var(--violet)}
+.card .hint span.ar{display:inline-block;transition:transform .3s}
+.card.open .hint span.ar{transform:rotate(180deg)}
+.card-more{max-height:0;overflow:hidden;transition:max-height .42s cubic-bezier(.2,.8,.2,1),margin .42s,opacity .3s;opacity:0;margin-top:0}
+.card.open .card-more{opacity:1;margin-top:12px}
+.card-more ul{margin:0;padding-left:18px;color:var(--text-2);font-size:14px;line-height:1.8}
+.card-more li::marker{color:var(--blue)}
+.card-more .kv{margin-top:10px;font-size:13.5px;color:var(--text-3)}
+.card-more .kv code{font-size:12.5px}
+
+/* ---------------- 流程 ---------------- */
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;position:relative}
+@media(max-width:860px){.flow{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.flow{grid-template-columns:1fr}}
+.step{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px;box-shadow:var(--shadow-sm);position:relative}
+.step .n{width:30px;height:30px;border-radius:9px;background:var(--grad);color:#fff;font-weight:800;font-size:14px;display:grid;place-items:center;margin-bottom:12px;box-shadow:0 6px 16px rgba(75,123,229,.3)}
+.step h3{font-size:15.5px;margin-bottom:6px}
+.step p{margin:0;color:var(--text-2);font-size:14px}
+.step code{font-size:12.5px}
+
+/* ---------------- 聊天气泡演示 ---------------- */
+.demo{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:760px){.demo{grid-template-columns:1fr}}
+.chat{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px;box-shadow:var(--shadow-md)}
+.chat .bar{display:flex;align-items:center;gap:9px;padding-bottom:13px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.chat .bar i{width:10px;height:10px;border-radius:50%;display:block}
+.chat .bar i:nth-child(1){background:#FF5F57}.chat .bar i:nth-child(2){background:#FEBC2E}.chat .bar i:nth-child(3){background:#28C840}
+.chat .bar b{margin-left:6px;font-size:13.5px;color:var(--text-2);font-weight:700}
+.bub{max-width:84%;padding:10px 14px;border-radius:15px;font-size:14px;line-height:1.62;margin-bottom:10px;opacity:0;transform:translateY(10px) scale(.97);position:relative;box-shadow:var(--shadow-sm)}
+.chat.go .bub{animation:bubbleIn .5s cubic-bezier(.2,.9,.2,1) forwards}
+.chat.go .bub:nth-child(3){animation-delay:.05s}
+.chat.go .bub:nth-child(4){animation-delay:.45s}
+.chat.go .bub:nth-child(5){animation-delay:.85s}
+.chat.go .bub:nth-child(6){animation-delay:1.25s}
+.chat.go .bub:nth-child(7){animation-delay:1.65s}
+.chat.go .bub:nth-child(8){animation-delay:2.05s}
+@keyframes bubbleIn{to{opacity:1;transform:none}}
+.bub.me{background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff;margin-left:auto;border-bottom-right-radius:5px}
+.bub.bot{background:var(--card-2);border:1px solid var(--line);border-bottom-left-radius:5px;color:var(--text)}
+.bub .who{display:block;font-size:11.5px;font-weight:800;opacity:.72;margin-bottom:3px;letter-spacing:.02em}
+.bub.out{background:#fff;border:1px dashed rgba(75,123,229,.4);color:var(--text-2);max-width:100%;font-size:13.5px}
+.bub.out b{color:var(--text)}
+
+/* ---------------- 表格 ---------------- */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--card);box-shadow:var(--shadow-sm)}
+table{width:100%;border-collapse:collapse;font-size:14.5px;min-width:540px}
+th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--card-2);font-size:13px;font-weight:800;color:var(--text-2);letter-spacing:.02em;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tbody tr{transition:background .18s}
+tbody tr:hover{background:rgba(75,123,229,.045)}
+td code{white-space:nowrap}
+.tag{display:inline-block;font-size:11.5px;font-weight:800;padding:2px 9px;border-radius:999px;background:var(--grad-soft);border:1px solid rgba(75,123,229,.2);color:var(--blue);white-space:nowrap}
+.tag.req{background:rgba(255,110,110,.12);border-color:rgba(255,110,110,.3);color:#D64545}
+.tag.rec{background:rgba(95,227,200,.16);border-color:rgba(95,227,200,.4);color:#0E8F72}
+
+/* ---------------- 提示块 ---------------- */
+.note{display:flex;gap:13px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:var(--r-sm);padding:16px 18px;box-shadow:var(--shadow-sm);margin-top:16px}
+.note .ni{font-size:19px;line-height:1.4}
+.note p{margin:0;color:var(--text-2);font-size:14.5px}
+.note b{color:var(--text)}
+.note.warn{border-left-color:#E8A33D}
+.note.sec{border-left-color:var(--mint)}
+
+/* ---------------- FAQ ---------------- */
+details{background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);box-shadow:var(--shadow-sm);margin-bottom:10px;overflow:hidden;transition:box-shadow .25s,border-color .25s}
+details[open]{box-shadow:var(--shadow-md);border-color:rgba(75,123,229,.22)}
+summary{cursor:pointer;padding:15px 18px;font-weight:700;font-size:15px;list-style:none;display:flex;align-items:center;gap:10px;transition:color .2s}
+summary:hover{color:var(--blue)}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"＋";color:var(--blue);font-weight:800;transition:transform .3s;display:inline-block}
+details[open] summary::before{content:"－"}
+details p{margin:0;padding:0 18px 16px 42px;color:var(--text-2);font-size:14.5px}
+
+/* ---------------- 支持 ---------------- */
+.support{text-align:center}
+.support .card{display:inline-block;text-align:center;padding:30px 34px;max-width:520px}
+.qr{width:190px;height:190px;border-radius:14px;border:1px solid var(--line);box-shadow:var(--shadow-sm);background:#fff;padding:6px;transition:transform .3s}
+.qr:hover{transform:scale(1.035) rotate(-1deg)}
+.star-btn{margin-bottom:20px}
+
+/* ---------------- 页脚 ---------------- */
+footer{border-top:1px solid var(--line);padding:38px 0 46px;color:var(--text-3);font-size:14px;text-align:center;background:rgba(255,255,255,.5)}
+footer a{color:var(--text-2)}
+.foot-links{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+
+@media(prefers-reduced-motion:reduce){
+  *{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
+  html{scroll-behavior:auto}
+  .reveal{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+
+<div class="orbs" aria-hidden="true">
+  <span class="orb a"></span><span class="orb b"></span><span class="orb c"></span>
+</div>
+
+<div class="page">
+
+<header class="nav" id="topnav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top"><img src="logo.png" alt="">匿名树洞</a>
+    <nav class="nav-links">
+      <a href="#why">为什么</a>
+      <a href="#flow">工作流程</a>
+      <a href="#feat">功能</a>
+      <a href="#demo">效果</a>
+      <a href="#config">配置</a>
+      <a href="#install">安装</a>
+      <a href="#privacy">隐私</a>
+      <a href="#faq">FAQ</a>
+      <a href="#support">支持</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<!-- ===== Hero ===== -->
+<section class="hero" id="top">
+  <div class="wrap">
+    <img class="logo" src="logo.png" alt="匿名树洞">
+    <h1>给群聊一个<br><span class="grad-text">可以放心说话</span>的地方</h1>
+    <p class="tag">
+      白名单外的人私聊机器人即<b>自动进入匿名模式</b>，倾诉内容以随机昵称重新拼装成一条新消息转述到群聊。
+      <strong>不是转发聊天记录</strong>——群成员只看得到一个水果昵称。
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="#install">↓ 立即安装</a>
+      <a class="btn ghost" href="https://github.com/yuntaojinghong/astrbot_plugin_anon_relay">在 GitHub 查看</a>
+    </div>
+    <div class="chips">
+      <span class="chip">AstrBot <b>&#8805;4.16</b></span>
+      <span class="chip"><b>101</b> 项离线测试</span>
+      <span class="chip"><b>0</b> 第三方依赖</span>
+      <span class="chip"><b>MIT</b> 开源</span>
+      <span class="chip">多平台消息通道</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 为什么 ===== -->
+<section id="why">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Why</span>
+      <h2>转发聊天记录，等于没有匿名</h2>
+      <p>群里有树洞、吐槽、心理疏导需求时，最省事的做法是「转发消息」，但转发会把头像、昵称、QQ 号一起带过去。</p>
+    </div>
+
+    <div class="grid g2">
+      <div class="card reveal">
+        <div class="ico">📎</div>
+        <h3>转发 = 信息全暴露</h3>
+        <p>转发聊天记录会连同发送者昵称、头像、时间戳一起呈现，任何人点开都能定位到真人。想要匿名，必须<strong>丢弃原始消息</strong>。</p>
+      </div>
+      <div class="card reveal">
+        <div class="ico">🪄</div>
+        <h3>树洞 = 重新拼装一条新消息</h3>
+        <p>插件由机器人以自身身份<strong>新建一条消息</strong>发出，格式为「匿名昵称 + 内容」，不携带任何原作者字段。群里看到的只有 <code>【番茄】：……</code></p>
+      </div>
+    </div>
+
+    <div class="note sec reveal">
+      <span class="ni">🌱</span>
+      <div>
+        <p><b>匿名昵称从池中不重复抽取并长期绑定。</b>同一个人每次倾诉都是同一个昵称，便于群内形成连续的对话感；
+        但昵称与真实身份之间没有任何对外可见的关联。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 工作流程 ===== -->
+<section id="flow">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Flow</span>
+      <h2>从一句话到群里的一条匿名消息</h2>
+      <p>全程无需倾诉者记住任何命令，第一句话就开始转述。</p>
+    </div>
+
+    <div class="flow">
+      <div class="step reveal"><div class="n">1</div><h3>识别与放行</h3><p>收到私聊后先判定身份：白名单内 → 正常对话；白名单外 → 直接进入匿名模式。群聊未开启时完全不干预。</p></div>
+      <div class="step reveal"><div class="n">2</div><h3>分配匿名身份</h3><p>首次开启时从昵称池抽一个未使用的昵称（如「番茄」）并持久化，之后一直沿用。池空则回退 <code>匿名者-001</code>。</p></div>
+      <div class="step reveal"><div class="n">3</div><h3>治理检查</h3><p>内容先过审查词库，命中<strong>直接拦截不转述</strong>；再过和谐词库，命中替换为 <code>**</code> 后照常转述。</p></div>
+      <div class="step reveal"><div class="n">4</div><h3>解析目标群</h3><p>用户映射规则 → 自动识别所在群 → 统一兜底，逐级尝试。然后按模板拼装新消息发送到各个目标群。</p></div>
+    </div>
+
+    <div class="note reveal">
+      <span class="ni">🧩</span>
+      <div>
+        <p><b>转述格式可自定义。</b>默认 <code>【{name}】：{content}</code>，支持 <code>{name}</code> 昵称、<code>{content}</code> 内容、<code>{time}</code> 时间三个占位符。
+        长文按 <code>max_msg_len</code> 自动分段，每段都套用模板；图片同样支持转述。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 功能 ===== -->
+<section id="feat">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Features</span>
+      <h2>功能一览</h2>
+      <p>点开任意卡片查看详细说明。</p>
+    </div>
+
+    <h3 style="margin:0 0 14px 4px;font-size:17px" class="reveal">匿名转述</h3>
+    <div class="grid g3" style="margin-bottom:34px">
+      <div class="card reveal">
+        <div class="ico">🗣️</div>
+        <h3>私聊自动匿名</h3>
+        <p>白名单外的人私聊机器人<strong>直接进入匿名模式</strong>，第一句话就开始转述，无需记任何命令。</p>
+        <div class="hint">详细说明<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li>由 <code>auto_anon_private</code> 控制（默认开启）</li>
+            <li>自动开启的那一条消息本身不转述，只回执告知已分配昵称与目标群</li>
+            <li>关闭后回到「只有发送关键词才开启」的行为</li>
+            <li>白名单用户不受影响，可正常与机器人对话</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="ico">🔒</div>
+        <h3>白名单自由聊天</h3>
+        <p>白名单内的人是普通用户，与机器人正常对话（LLM 正常回复）；想匿名时发送「开启匿名模式」即可。</p>
+        <div class="hint">详细说明<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li><code>private_whitelist</code> 填写用户 ID，逗号分隔</li>
+            <li>支持 <code>平台:ID</code> 精确匹配，如 <code>qq:2226175932</code></li>
+            <li>白名单用户在匿名模式中仍会被转述，关闭后恢复自由聊天</li>
+            <li>来自其他平台的同名 ID 不会误命中</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="ico">💬</div>
+        <h3>群聊模式</h3>
+        <p>群内直接发送「开启匿名模式」，之后该群消息会被转述；默认转述回本群，也可映射到别的群。</p>
+        <div class="hint">详细说明<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li><code>enable_group_mode</code> 控制是否允许，关闭后群聊完全不干预</li>
+            <li>开启成功的提示优先以私聊悄悄话发送，避免在群里暴露身份</li>
+            <li>用 <code>group_target_rules</code> 指定 <code>源群:目标群</code></li>
+            <li>目标留空表示转述回来源群本身</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="ico">🤐</div>
+        <h3>沉默拦截</h3>
+        <p>未开启匿名模式的私聊默认被静默拦截，不回复也不触发 LLM；群聊未开启时完全不干预。</p>
+        <div class="hint">详细说明<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li><code>silent_when_off</code> 默认 <code>true</code></li>
+            <li>设为 <code>false</code> 时放行给其他处理器或 LLM，适合与别的插件共存</li>
+            <li>拦截同时会阻止默认 LLM 回复，避免「匿名内容被大模型看到」</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="ico">🎲</div>
+        <h3>随机昵称池</h3>
+        <p>从水果昵称池随机抽取并长期绑定；池为空时回退为「匿名者-001」编号。</p>
+        <div class="hint">详细说明<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li>昵称不重复抽取，<strong>两个人不会拿到同一个昵称</strong></li>
+            <li>同一用户跨会话、跨重启保持同一昵称</li>
+            <li>昵称池可用 txt 文件批量导入（设置页或聊天中发文件）</li>
+            <li>池耗尽后回退编号，前辍由 <code>anon_name_prefix</code> 指定</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="ico">🧩</div>
+        <h3>格式模板</h3>
+        <p>默认 <code>【{name}】：{content}</code>，支持 <code>{name}</code> <code>{content}</code> <code>{time}</code> 占位符。</p>
+        <div class="hint">详细说明<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li>留空 <code>relay_format</code> 则使用旧版多行格式</li>
+            <li>旧格式由 <code>relay_prefix</code> / <code>relay_suffix</code> / <code>show_time</code> 组合</li>
+            <li>超长文本按 <code>max_msg_len</code>（默认 500 字）分段，每段都套用模板</li>
+            <li>占位符拼写错误不会导致崩溃，按原样输出</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin:0 0 14px 4px;font-size:17px" class="reveal">转述目标</h3>
+    <div class="grid g4" style="margin-bottom:34px">
+      <div class="card reveal">
+        <div class="ico">🗺️</div>
+        <h3>用户映射规则</h3>
+        <p><code>user_target_rules</code> 精确指定某人的倾诉去向，优先级最高。</p>
+        <div class="hint">详细说明<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li>格式：<code>用户ID:群A,群B;用户ID2:群C</code></li>
+            <li>分号分隔多个用户，逗号分隔多个目标群</li>
+            <li>用户 ID 支持 <code>平台:ID</code> 写法</li>
+            <li>命中后不再尝试自动识别与统一目标</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="ico">🔍</div>
+        <h3>自动识别所在群</h3>
+        <p>私聊时查出倾诉者在哪些候选群里，A 群的人转到 A 群；同时在 A、B 群则两处都转。</p>
+        <div class="hint">详细说明<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li><code>auto_detect_groups</code> 默认开启</li>
+            <li><code>detect_group_ids</code> 限定候选群；留空表示机器人所在的全部群</li>
+            <li>依赖 OneBot/QQ（aiocqhttp）的群成员查询能力</li>
+            <li>其他平台查不到时自动回退到统一目标，不报错</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="ico">🧭</div>
+        <h3>群聊映射规则</h3>
+        <p><code>group_target_rules</code> 决定群内开启匿名模式后转述到哪。</p>
+        <div class="hint">详细说明<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li>格式：<code>源群号:目标群1,目标群2;源群号2:</code></li>
+            <li>支持分号或换行分隔多条规则</li>
+            <li>目标留空 = 转述回来源群本身</li>
+            <li>未配置规则的群走统一兜底目标</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="ico">📮</div>
+        <h3>统一兜底</h3>
+        <p>以上规则都没命中时，落到 <code>target_group_ids</code>（多群逗号分隔）。</p>
+        <div class="hint">详细说明<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li>解析顺序：用户映射 → 自动识别 → 统一目标</li>
+            <li>三项都为空时机器人会回执提示「未配置任何目标群」</li>
+            <li>可从任意平台发送，插件通过 AstrBot 统一消息通道投递</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin:0 0 14px 4px;font-size:17px" class="reveal">治理与安全</h3>
+    <div class="grid g3">
+      <div class="card reveal">
+        <div class="ico">🛡️</div>
+        <h3>内容审查</h3>
+        <p>命中 <code>review_words</code> 直接拦截不转述，并告知倾诉者；每条消息<strong>独立判断</strong>。</p>
+        <div class="hint">详细说明<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li>审查 = 拦截不发送；和谐 = 替换后照常发送</li>
+            <li>命中总是提示，不像旧版会静默丢弃</li>
+            <li>新一轮正常倾诉不会被上一轮审查结果影响</li>
+            <li>开关 <code>review_enabled</code> 默认开启，词库默认留空，填了才生效</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="ico">🧼</div>
+        <h3>脏话自动和谐</h3>
+        <p>命中 <code>bad_words</code> 自动替换为 <code>censor_mask</code>（默认 <code>**</code>）后照常转述。</p>
+        <div class="hint">详细说明<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li>内置常见脏话列表，可自行增删</li>
+            <li>例：「我操你妈」→「我**」</li>
+            <li>替换符号可改，甚至可换成 emoji</li>
+            <li>与审查互不干扰，可同时开启</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="ico">🚫</div>
+        <h3>身份管控</h3>
+        <p>管理员可「禁言 昵称 分钟」「永久禁用 昵称」，按匿名昵称生效，重启不丢。</p>
+        <div class="hint">详细说明<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li><code>禁言 番茄 60</code> 禁言一小时，期间其消息不转述</li>
+            <li><code>永久禁用 草莓</code> 使其无法再开启匿名模式</li>
+            <li><code>解禁</code> / <code>解除禁用</code> 恢复使用</li>
+            <li>管理名单永久保存，重启不丢</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="ico">📄</div>
+        <h3>词库 txt 批量导入</h3>
+        <p>和谐/审查/昵称三个词库都能在设置页上传，或管理员在聊天中直接发 txt。</p>
+        <div class="hint">详细说明<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li>优先级：聊天上传 &gt; 设置页文件 &gt; 面板文本</li>
+            <li>支持 UTF-8（含 BOM）与 GBK/GB18030</li>
+            <li>每行一个词，<code>#</code> 开头为注释</li>
+            <li>单文件 ≤ 2MB、单次 ≤ 10000 个词</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="ico">💾</div>
+        <h3>状态持久化</h3>
+        <p>会话与名单存在插件 KV 存储中，重启不丢。</p>
+        <div class="hint">详细说明<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li>只保存「用户标识 → 匿名编号 + 时间」的映射</li>
+            <li><strong>不保存聊天内容</strong></li>
+            <li>可选会话空闲超时 <code>session_timeout_min</code></li>
+            <li>在 WebUI 插件→数据管理 中可清空重置</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="ico">📡</div>
+        <h3>多平台</h3>
+        <p>QQ / Telegram / 微信 / 飞书 / Discord 等，通过 AstrBot 统一消息通道发送。</p>
+        <div class="hint">详细说明<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li>核心逻辑与平台无关，使用通用发送 API</li>
+            <li>自动识别所在群仅 OneBot/QQ 支持，其他平台回退统一目标</li>
+            <li>群号格式按平台填写：Telegram 为负数 chat id</li>
+            <li>已在 <code>metadata.yaml</code> 中声明支持平台</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 效果演示 ===== -->
+<section id="demo">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Demo</span>
+      <h2>实际对话长什么样</h2>
+      <p>左侧是私聊，右侧是群里的结果。</p>
+    </div>
+
+    <div class="demo">
+      <div class="chat" id="chat1">
+        <div class="bar"><i></i><i></i><i></i><b>私聊 · 白名单外用户</b></div>
+        <div class="bub me">最近工作压力好大，感觉快撑不住了……</div>
+        <div class="bub bot"><span class="who">机器人</span>🔇 匿名模式已开启，你的匿名身份是「番茄」<br>📮 本次将转述到：816111082</div>
+        <div class="bub me">项目又要延期了，真的顶不住。</div>
+        <div class="bub bot"><span class="who">机器人</span>已为你转述 ✅</div>
+        <div class="bub me">关闭匿名模式</div>
+        <div class="bub bot"><span class="who">机器人</span>匿名模式已关闭。感谢你的信任，随时可以再来倾诉 🌱</div>
+      </div>
+
+      <div class="chat" id="chat2">
+        <div class="bar"><i></i><i></i><i></i><b>群聊 · 其他成员看到的内容</b></div>
+        <div class="bub out">【番茄】：最近工作压力好大，感觉快撑不住了……</div>
+        <div class="bub out">【番茄】：项目又要延期了，真的顶不住。</div>
+        <div class="bub out">【草莓】：有人一起打个游戏吗，想换换脑子</div>
+        <div class="bub out">【柠檬】：我**，这个需求改第八遍了</div>
+        <div class="note" style="margin-top:6px">
+          <span class="ni">👀</span>
+          <div><p>群里只有昵称与内容，<b>没有头像、没有 QQ 号、没有原作者字段</b>。同一个昵称始终对应同一个人，但无法反查是谁。</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note warn reveal">
+      <span class="ni">⚠️</span>
+      <div>
+        <p><b>匿名是「对群成员匿名」，不是「对管理员匿名」。</b>管理员仍可通过 AstrBot 日志查看原始消息——
+        这是刻意设计，用于处置违规内容。建议在群规中向成员说明这一点。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 配置 ===== -->
+<section id="config">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Config</span>
+      <h2>配置面板</h2>
+      <p>WebUI → 插件管理 → 「匿名树洞」→ 配置。表单由 <code>_conf_schema.json</code> 自动生成，共 32 项。</p>
+    </div>
+
+    <h3 style="margin:0 0 12px 4px;font-size:16.5px" class="reveal">最关键的三项</h3>
+    <div class="tbl-wrap reveal" style="margin-bottom:30px">
+      <table>
+        <thead><tr><th>配置键</th><th>默认</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><code>target_group_ids</code><span class="tag req">必填</span></td><td>（空）</td><td>统一转述目标群，多群用英文逗号分隔。所有映射规则都没命中时用它</td></tr>
+          <tr><td><code>private_whitelist</code></td><td>（空）</td><td>私聊白名单：这些人可与机器人正常对话，不受匿名拦截</td></tr>
+          <tr><td><code>auto_detect_groups</code></td><td><code>true</code></td><td>私聊时自动识别倾诉者所在群（OneBot 支持），实现「A 群的人转到 A 群」</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin:0 0 12px 4px;font-size:16.5px" class="reveal">会话与权限</h3>
+    <div class="tbl-wrap reveal" style="margin-bottom:30px">
+      <table>
+        <thead><tr><th>配置键</th><th>默认</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><code>enabled</code></td><td><code>true</code></td><td>总开关，关闭后插件完全不响应</td></tr>
+          <tr><td><code>start_keywords</code></td><td><code>开启匿名模式</code></td><td>开启会话的关键词，多个用英文逗号分隔</td></tr>
+          <tr><td><code>stop_keywords</code></td><td><code>关闭匿名模式,结束倾诉</code></td><td>关闭会话的关键词</td></tr>
+          <tr><td><code>auto_anon_private</code></td><td><code>true</code></td><td>白名单外私聊自动开启匿名模式</td></tr>
+          <tr><td><code>silent_when_off</code></td><td><code>true</code></td><td>私聊未开启时保持沉默；设为 <code>false</code> 则放行给其他处理器/LLM</td></tr>
+          <tr><td><code>enable_group_mode</code></td><td><code>true</code></td><td>允许群聊内开启匿名模式</td></tr>
+          <tr><td><code>session_timeout_min</code></td><td><code>0</code></td><td>会话空闲超时（分钟），<code>0</code> 为不超时</td></tr>
+          <tr><td><code>ack_on_relay</code></td><td><code>true</code></td><td>转述成功回执；群聊会话优先发私聊悄悄话</td></tr>
+          <tr><td><code>notify_group_on_start</code></td><td><code>false</code></td><td>有人开启匿名模式时在目标群内播报一条提示</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin:0 0 12px 4px;font-size:16.5px" class="reveal">转述格式</h3>
+    <div class="tbl-wrap reveal" style="margin-bottom:30px">
+      <table>
+        <thead><tr><th>配置键</th><th>默认</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><code>relay_format</code></td><td><code>【{name}】：{content}</code></td><td>转述格式模板，占位符 <code>{name}</code> <code>{content}</code> <code>{time}</code>；留空用旧格式</td></tr>
+          <tr><td><code>nicknames</code></td><td>水果昵称池</td><td>随机昵称池；留空则用编号兜底</td></tr>
+          <tr><td><code>nicknames_file</code></td><td>（空）</td><td>昵称池 txt 文件（设置页上传）</td></tr>
+          <tr><td><code>anon_name_prefix</code></td><td><code>匿名者</code></td><td>编号兜底昵称前缀</td></tr>
+          <tr><td><code>show_time</code></td><td><code>true</code></td><td>提供 <code>{time}</code> 占位符 / 旧格式附带时间</td></tr>
+          <tr><td><code>max_msg_len</code></td><td><code>500</code></td><td>单条转述最大字数，超长自动分段</td></tr>
+          <tr><td><code>relay_prefix</code> / <code>relay_suffix</code></td><td><code>【匿名倾诉】</code> / （空）</td><td>仅 <code>relay_format</code> 留空时生效</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin:0 0 12px 4px;font-size:16.5px" class="reveal">转述目标映射</h3>
+    <div class="tbl-wrap reveal" style="margin-bottom:30px">
+      <table>
+        <thead><tr><th>配置键</th><th>默认</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><code>user_target_rules</code></td><td>（空）</td><td>私聊用户映射（优先）：<code>用户ID:群A,群B;用户ID2:群C</code></td></tr>
+          <tr><td><code>group_target_rules</code></td><td>（空）</td><td>群聊映射：<code>源群号:目标群1,目标群2;源群号2:</code>（分号或换行分隔）</td></tr>
+          <tr><td><code>detect_group_ids</code></td><td>（空）</td><td>自动识别的候选群；留空 = 机器人所在的全部群</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin:0 0 12px 4px;font-size:16.5px" class="reveal">内容治理</h3>
+    <div class="tbl-wrap reveal">
+      <table>
+        <thead><tr><th>配置键</th><th>默认</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><code>review_enabled</code></td><td><code>true</code></td><td>内容审查开关：命中直接拦截不转述</td></tr>
+          <tr><td><code>review_words</code> / <code>review_words_file</code></td><td>（空）</td><td>审查词库（文本 / txt 文件）</td></tr>
+          <tr><td><code>censor_enabled</code></td><td><code>true</code></td><td>脏话自动和谐开关</td></tr>
+          <tr><td><code>bad_words</code> / <code>bad_words_file</code></td><td>内置脏话列表</td><td>和谐词库（文本 / txt 文件）</td></tr>
+          <tr><td><code>censor_mask</code></td><td><code>**</code></td><td>和谐替换符号</td></tr>
+          <tr><td><code>admin_commands_enabled</code></td><td><code>true</code></td><td>启用管理命令</td></tr>
+          <tr><td><code>mute_default_min</code></td><td><code>30</code></td><td>「禁言 昵称」不带时长时的默认分钟数</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin:36px 0 12px 4px;font-size:16.5px" class="reveal">管理员命令</h3>
+    <div class="tbl-wrap reveal">
+      <table>
+        <thead><tr><th>命令</th><th>效果</th></tr></thead>
+        <tbody>
+          <tr><td><code>禁言 昵称 [分钟]</code></td><td>禁言该匿名身份，省略时长用默认 <code>mute_default_min</code></td></tr>
+          <tr><td><code>解禁 昵称</code></td><td>解除禁言</td></tr>
+          <tr><td><code>永久禁用 昵称</code></td><td>永久禁用该匿名身份，无法再开启匿名模式</td></tr>
+          <tr><td><code>解除禁用 昵称</code></td><td>恢复匿名模式使用权限</td></tr>
+          <tr><td><code>上传和谐词库 / 上传审查词库 / 上传昵称池</code></td><td>附带 txt 文件批量导入词库</td></tr>
+          <tr><td><code>重置词库</code></td><td>清除聊天上传的词库，回退到设置页文件/面板配置</td></tr>
+          <tr><td><code>重置和谐词库 / 重置审查词库 / 重置昵称池</code></td><td>单独重置某一类词库</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note reveal">
+      <span class="ni">💡</span>
+      <div>
+        <p><b>词库优先级：</b>聊天上传 &gt; 设置页上传文件 &gt; 配置面板文本。上一级缺失时自动回退到下一级，不会因为漏配某一项而失效。
+        词库文件支持 UTF-8（含 BOM）与 GBK 编码，每行一个词，<code>#</code> 开头为注释行。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 安装 ===== -->
+<section id="install">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Install</span>
+      <h2>三分钟装好</h2>
+      <p>不需要安装任何第三方依赖，下载即用。</p>
+    </div>
+
+    <div class="grid g3">
+      <div class="card reveal">
+        <div class="ico">📦</div>
+        <h3>方式一 · 下载 zip 上传 <span class="tag rec">推荐</span></h3>
+        <p>下载最新安装包，在 WebUI 插件管理里上传，重载插件，填好目标群号即可。</p>
+        <div class="hint">展开步骤<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li>下载 <a href="https://github.com/yuntaojinghong/astrbot_plugin_anon_relay/releases/latest/download/astrbot_plugin_anon_relay.zip">astrbot_plugin_anon_relay.zip</a></li>
+            <li>WebUI → 插件管理 → 安装插件 → 上传该 zip</li>
+            <li>在插件管理中<strong>重载插件</strong></li>
+            <li>进入配置面板填「目标群号」，保存后再次重载</li>
+          </ul>
+          <div class="kv">zip 文件名需保持为 <code>astrbot_plugin_anon_relay.zip</code>，AstrBot 以文件名作为插件目录名。</div>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="ico">🔗</div>
+        <h3>方式二 · 从 GitHub 仓库安装</h3>
+        <p>在插件管理里选择「从 GitHub 仓库安装」，填入仓库地址。要求服务器能访问 GitHub。</p>
+        <div class="hint">展开步骤<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li>WebUI → 插件管理 → 安装插件 → 从 GitHub 仓库安装</li>
+            <li>填入 <code>https://github.com/yuntaojinghong/astrbot_plugin_anon_relay</code></li>
+            <li>这种方式便于后续一键更新</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="ico">🗂️</div>
+        <h3>方式三 · 手动复制文件夹</h3>
+        <p>把整个插件目录放进 AstrBot 的 plugins 目录，然后在 WebUI 里重载插件。</p>
+        <div class="hint">展开步骤<span class="ar">▼</span></div>
+        <div class="card-more">
+          <ul>
+            <li>桌面版：<code>C:\Users\&lt;用户名&gt;\.astrbot\data\plugins\</code></li>
+            <li>源码/systemd：<code>&lt;AstrBot根目录&gt;/data/plugins/</code></li>
+            <li>Docker：容器内 <code>/AstrBot/data/plugins/</code>（或挂载卷）</li>
+            <li>放入后在 WebUI「插件管理」中重载</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="note reveal">
+      <span class="ni">✅</span>
+      <div>
+        <p><b>环境要求：</b>AstrBot <code>&gt;= 4.16, &lt; 5</code>，Python 3.10+，无第三方依赖。
+        安装后第一次一定要进配置面板填 <code>target_group_ids</code>，否则转述没有目标群。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 隐私 ===== -->
+<section id="privacy">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Privacy</span>
+      <h2>数据与隐私</h2>
+      <p>插件保存什么、不保存什么，以及匿名的边界在哪。</p>
+    </div>
+
+    <div class="grid g2">
+      <div class="card reveal">
+        <div class="ico">✅</div>
+        <h3>只保存最小状态</h3>
+        <p>会话状态（用户平台标识 → 匿名编号、时间）与管理名单，存放在 AstrBot 的插件 KV 存储中，重启不丢。</p>
+      </div>
+      <div class="card reveal">
+        <div class="ico">🚫</div>
+        <h3>不保存聊天内容</h3>
+        <p>插件自身<strong>不落盘任何倾诉内容</strong>，转述完成后内存中不保留副本。日志由 AstrBot 统一管理，请自行评估其保留策略。</p>
+      </div>
+      <div class="card reveal">
+        <div class="ico">🎭</div>
+        <h3>群内不出现身份字段</h3>
+        <p>群内只出现匿名昵称与内容，没有头像、昵称、QQ 号。发送的是<strong>重新拼装的新消息</strong>，不携带原作者元数据。</p>
+      </div>
+      <div class="card reveal">
+        <div class="ico">🧑‍💼</div>
+        <h3>管理员可见原始消息</h3>
+        <p>这是刻意设计：管理员仍可通过 AstrBot 日志查看原始消息，用于处置违规内容。建议在群规中向成员明确说明。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FAQ ===== -->
+<section id="faq">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">FAQ</span>
+      <h2>常见问题</h2>
+    </div>
+
+    <div class="reveal">
+      <details>
+        <summary>私聊发消息没有反应？</summary>
+        <p>默认设计如此（<code>silent_when_off = true</code>）。若想放行给 LLM，把 <code>silent_when_off</code> 设为 <code>false</code>；
+        若是白名单用户却仍被拦截，检查 <code>private_whitelist</code> 是否填了正确的用户 ID（必要时用 <code>平台:ID</code> 格式）。</p>
+      </details>
+
+      <details>
+        <summary>群号填什么格式？</summary>
+        <p>QQ / OneBot 填群号数字即可；Telegram 填群聊 chat id（可能为负数）；多群用英文逗号分隔，如 <code>123456789,987654321</code>。</p>
+      </details>
+
+      <details>
+        <summary>语音、表情、视频能转述吗？</summary>
+        <p>不能，仅支持文字和图片。遇到这类消息机器人会提示一次，同一会话内不再重复提示。</p>
+      </details>
+
+      <details>
+        <summary>转述失败怎么排查？</summary>
+        <p>依次检查：目标群号是否正确、机器人是否在该群里、插件是否已重载、AstrBot 日志中是否有
+        <code>转述到群 ... 失败</code> 或 <code>未找到平台 ...</code> 报错。</p>
+      </details>
+
+      <details>
+        <summary>自动识别所在群不生效？</summary>
+        <p>该功能依赖 OneBot/QQ（aiocqhttp）适配器的群成员查询能力，其他平台会自动回退到统一目标
+        <code>target_group_ids</code>，不会报错。若想缩小查询范围，用 <code>detect_group_ids</code> 限定候选群。</p>
+      </details>
+
+      <details>
+        <summary>两个人会拿到同一个匿名昵称吗？</summary>
+        <p>不会，昵称从池中不重复抽取。池子耗尽后会回退到编号昵称（<code>匿名者-001</code>…）。</p>
+      </details>
+
+      <details>
+        <summary>匿名昵称想重置怎么办？</summary>
+        <p>昵称与编号全局持久化，同一用户多次开启保持不变。如需重置，删除插件存储数据即可
+        （WebUI 插件管理 → 数据管理）。</p>
+      </details>
+
+      <details>
+        <summary>旧版本 AstrBot 能用吗？</summary>
+        <p>本插件基于 AstrBot v4 Star API（<code>&gt;= 4.16, &lt; 5</code>），v3 及早期 v4 不支持。</p>
+      </details>
+
+      <details>
+        <summary>插件图标显示为默认占位图？</summary>
+        <p>确认插件根目录存在 <code>logo.png</code>（256×256，1:1）。从 v1.9.0 起安装包已内置该文件，
+        更新插件后刷新 Dashboard 即可看到。</p>
+      </details>
+
+      <details>
+        <summary>怎么确认代码没被改坏？</summary>
+        <p>仓库自带 101 项离线回归测试，用桩模块模拟 AstrBot API，无需安装 AstrBot：
+        <code>python -X utf8 tests/test_logic.py</code>。CI 在 Python 3.10–3.13 上全部跑一遍。</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 支持 ===== -->
+<section id="support">
+  <div class="wrap support">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Support</span>
+      <h2>如果它帮到了你</h2>
+      <p>点个 Star，或者请我喝杯咖啡。</p>
+    </div>
+
+    <div class="card reveal">
+      <a class="btn primary star-btn" href="https://github.com/yuntaojinghong/astrbot_plugin_anon_relay">⭐ 去 GitHub 点 Star</a>
+      <div><img class="qr" src="donate_qr.png" alt="赞赏码"></div>
+      <p style="margin-top:12px;font-size:14px;color:var(--text-3)">微信扫一扫 · 金额随意 · 纯粹心意</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-links">
+      <a href="https://github.com/yuntaojinghong/astrbot_plugin_anon_relay">GitHub 仓库</a>
+      <a href="https://github.com/yuntaojinghong/astrbot_plugin_anon_relay/releases">版本发布</a>
+      <a href="https://github.com/yuntaojinghong/astrbot_plugin_anon_relay/blob/main/CHANGELOG.md">更新日志</a>
+      <a href="https://github.com/yuntaojinghong/astrbot_plugin_anon_relay/blob/main/LICENSE">MIT 许可证</a>
+      <a href="https://github.com/AstrBotDevs/AstrBot">AstrBot</a>
+    </div>
+    <div>匿名树洞 · astrbot_plugin_anon_relay · 用 <span class="grad-text" style="font-weight:800">AstrBot Star API</span> 构建</div>
+  </div>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- 导航吸顶阴影 ---------- */
+  var nav = document.getElementById('topnav');
+
+  /* ---------- 滚动浮现 ---------- */
+  var reveals = [].slice.call(document.querySelectorAll('.reveal'));
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (!e.isIntersecting) return;
+        var el = e.target;
+        var sibs = el.parentNode ? [].slice.call(el.parentNode.children).indexOf(el) : 0;
+        el.style.transitionDelay = Math.min(sibs, 5) * 70 + 'ms';
+        el.classList.add('in');
+        io.unobserve(el);
+      });
+    }, { rootMargin: '0px 0px -12% 0px', threshold: 0.08 });
+    reveals.forEach(function(el){ io.observe(el); });
+  } else {
+    reveals.forEach(function(el){ el.classList.add('in'); });
+  }
+
+  /* ---------- 聊天气泡依次播放 ---------- */
+  function playChat(el){
+    if (!el || el.dataset.played) return;
+    el.dataset.played = '1';
+    el.classList.add('go');
+  }
+  var chats = [document.getElementById('chat1'), document.getElementById('chat2')];
+  if ('IntersectionObserver' in window) {
+    var cio = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting){ playChat(e.target); cio.unobserve(e.target); }
+      });
+    }, { threshold: 0.25 });
+    chats.forEach(function(c){ if (c) cio.observe(c); });
+  } else {
+    chats.forEach(playChat);
+  }
+
+  /* ---------- 卡片悬浮光斑 ---------- */
+  document.querySelectorAll('.card').forEach(function(card){
+    card.addEventListener('pointermove', function(ev){
+      var r = card.getBoundingClientRect();
+      card.style.setProperty('--mx', (ev.clientX - r.left) + 'px');
+      card.style.setProperty('--my', (ev.clientY - r.top) + 'px');
+    });
+  });
+
+  /* ---------- 卡片展开详情 ---------- */
+  document.querySelectorAll('.card').forEach(function(card){
+    var hint = card.querySelector('.hint');
+    var more = card.querySelector('.card-more');
+    if (!hint || !more) return;
+    hint.setAttribute('role','button');
+    hint.setAttribute('tabindex','0');
+    function toggle(){
+      var open = card.classList.toggle('open');
+      more.style.maxHeight = open ? (more.scrollHeight + 24) + 'px' : '0px';
+    }
+    hint.addEventListener('click', function(e){ e.preventDefault(); toggle(); });
+    hint.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggle(); }
+    });
+  });
+
+  /* ---------- 滚动高亮当前章节 ---------- */
+  var links = [].slice.call(document.querySelectorAll('.nav-links a'));
+  var secs = links.map(function(a){
+    return document.querySelector(a.getAttribute('href'));
+  });
+  function onScroll(){
+    if (nav) nav.classList.toggle('stuck', window.scrollY > 8);
+    var pos = window.scrollY + 120;
+    var idx = -1;
+    secs.forEach(function(s, i){
+      if (s && s.offsetTop <= pos) idx = i;
+    });
+    links.forEach(function(a, i){ a.classList.toggle('act', i === idx); });
+  }
+  var ticking = false;
+  window.addEventListener('scroll', function(){
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function(){ onScroll(); ticking = false; });
+  }, { passive: true });
+  onScroll();
+
+  /* ---------- 窗口尺寸变化时重算已展开卡片高度 ---------- */
+  window.addEventListener('resize', function(){
+    document.querySelectorAll('.card.open .card-more').forEach(function(m){
+      m.style.maxHeight = (m.scrollHeight + 24) + 'px';
+    });
+  });
+
+  /* ---------- 数字滚动（若有 data-count 元素） ---------- */
+  document.querySelectorAll('[data-count]').forEach(function(el){
+    var target = parseInt(el.dataset.count, 10) || 0;
+    var obs = new IntersectionObserver(function(entries){
+      if (!entries[0].isIntersecting) return;
+      obs.disconnect();
+      var start = performance.now(), dur = 1100;
+      function tick(now){
+        var p = Math.min((now - start) / dur, 1);
+        var eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(target * eased);
+        if (p < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }, { threshold: 0.4 });
+    obs.observe(el);
+  });
+})();
+</script>
+
+</body>
+</html>

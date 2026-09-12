@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: 回归测试 (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: 语法检查
+        run: python -m compileall -q main.py tests scripts
+
+      - name: 离线回归测试
+        run: python -X utf8 tests/test_logic.py
+
+  package:
+    name: 打包校验
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 构建分发压缩包
+        run: python -X utf8 scripts/build_release.py
+
+      - name: 校验压缩包内容（必须含 main.py / metadata.yaml / _conf_schema.json / logo.png）
+        run: |
+          python - <<'PY'
+          import zipfile, sys
+          required = {
+              "astrbot_plugin_anon_relay/main.py",
+              "astrbot_plugin_anon_relay/metadata.yaml",
+              "astrbot_plugin_anon_relay/_conf_schema.json",
+              "astrbot_plugin_anon_relay/logo.png",
+          }
+          names = set(zipfile.ZipFile("dist/astrbot_plugin_anon_relay.zip").namelist())
+          missing = required - names
+          if missing:
+              print("缺少必需文件:", sorted(missing))
+              sys.exit(1)
+          leaked = [n for n in names if n.startswith("astrbot_plugin_anon_relay/data/") or n.endswith(".pyc")]
+          if leaked:
+              print("压缩包包含不应分发的文件:", leaked)
+              sys.exit(1)
+          print(f"OK: {len(names)} 个文件，必需文件齐全")
+          PY
+
+      - name: 上传压缩包（供人工检查）
+        uses: actions/upload-artifact@v4
+        with:
+          name: astrbot_plugin_anon_relay
+          path: dist/astrbot_plugin_anon_relay.zip
+          retention-days: 7

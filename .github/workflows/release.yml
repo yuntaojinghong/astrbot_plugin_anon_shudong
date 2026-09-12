@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  release:
+    name: 构建并发布
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 校验版本号一致性（tag / metadata.yaml / main.py）
+        run: |
+          python - <<'PY'
+          import os, re, sys
+          tag = os.environ["GITHUB_REF_NAME"].lstrip("v")
+          meta = open("metadata.yaml", encoding="utf-8").read()
+          m_meta = re.search(r"^version:\s*(\S+)\s*$", meta, re.M)
+          m_py = re.search(r'^__version__\s*=\s*"([^"]+)"', open("main.py", encoding="utf-8").read(), re.M)
+          got = {"metadata.yaml": m_meta and m_meta.group(1), "main.py": m_py and m_py.group(1)}
+          bad = {k: v for k, v in got.items() if v != tag}
+          if bad:
+              print(f"版本号不一致：tag=v{tag}，{bad}")
+              sys.exit(1)
+          print(f"版本号一致：v{tag}")
+          PY
+
+      - name: 发布前回归测试
+        run: python -X utf8 tests/test_logic.py
+
+      - name: 构建分发压缩包
+        run: python -X utf8 scripts/build_release.py
+
+      - name: 创建 GitHub Release 并上传资产
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/astrbot_plugin_anon_relay.zip
+            dist/astrbot_plugin_anon_relay.tar.gz
+          generate_release_notes: true
+          draft: false

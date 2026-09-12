@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="匿名树洞 插件图标">
+  <title>匿名树洞 astrbot_plugin_anon_relay</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5FE3C8"/>
+      <stop offset="0.52" stop-color="#4B7BE5"/>
+      <stop offset="1" stop-color="#6A4BE0"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.16" cy="0.10" r="0.62">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="sh" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="9" stdDeviation="15" flood-color="#17123C" flood-opacity="0.35"/>
+    </filter>
+    <clipPath id="round">
+      <rect x="0" y="0" width="512" height="512" rx="115"/>
+    </clipPath>
+    <g id="bubble">
+      <rect x="94.7" y="143.4" width="322.6" height="204.8" rx="60.4"/>
+      <polygon points="139.3,315.4 132.1,405.5 223.2,340.0"/>
+      <rect x="134.1" y="307.2" width="97.3" height="26.6" rx="10.2"/>
+    </g>
+    <g id="spark">
+      <path d="M0 -1 L0.30 -0.30 L1 0 L0.30 0.30 L0 1 L-0.30 0.30 L-1 0 L-0.30 -0.30 Z"/>
+    </g>
+  </defs>
+
+  <g clip-path="url(#round)">
+    <rect width="512" height="512" fill="url(#bg)"/>
+    <rect width="512" height="512" fill="url(#glow)"/>
+  </g>
+  <rect x="6" y="6" width="500" height="500" rx="109" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="3"/>
+
+  <g filter="url(#sh)">
+    <use href="#bubble" fill="#17123C" fill-opacity="0.20"/>
+  </g>
+  <use href="#bubble" fill="#ffffff"/>
+
+  <g fill="#2B2472">
+    <circle cx="256" cy="221.2" r="36.9"/>
+    <path d="M233.9 233.7h44.2l-6.6 77.9h-31z"/>
+    <circle cx="256" cy="311.6" r="15.5"/>
+  </g>
+
+  <g fill="#ffffff">
+    <use href="#spark" transform="translate(405.5 109.6) scale(26.6)" opacity="0.95"/>
+    <use href="#spark" transform="translate(444.4 162.8) scale(13.3)" opacity="0.8"/>
+    <use href="#spark" transform="translate(108.5 404.5) scale(18.4)" opacity="0.82"/>
+  </g>
+</svg>

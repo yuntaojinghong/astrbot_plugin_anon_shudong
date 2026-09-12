@@ -1,12 +1,15 @@
 """
-匿名倾诉转述插件 (astrbot_plugin_anon_relay)
-============================================
+匿名树洞 (astrbot_plugin_anon_relay)
+====================================
+
+给机器人开一个「树洞」：把倾诉匿名转述到群聊，群成员看不到任何真实身份。
 
 功能：
-- 私聊开启匿名模式后倾诉，内容以匿名身份转述到指定群聊；也支持在群聊内直接开启匿名模式。
+- 白名单外的用户私聊机器人自动进入匿名模式（也可用关键词主动开启）；群聊内也能直接开启。
 - 匿名昵称默认从昵称池随机抽取（如 【番茄】），转述格式模板可自由配置：
   默认 【{name}】：{content}，支持 {name}/{content}/{time} 三个占位符。
-- 群聊目标映射：A 群的人倾诉只转述到 A 群；也可以统一转述到多个群。
+- 转述目标是机器人重新拼装的一条新消息，不是转发聊天记录。
+- 目标群映射：A 群的人倾诉只转述到 A 群；也可以统一转述到多个群。
 - 词库 txt 文件上传：和谐词库 / 审查词库 / 昵称池 支持管理员直接上传 txt 文件批量导入，可一键重置。
 - 未开启时私聊保持沉默（默认）；群聊未开启时完全不干预正常聊天。
 - 会话状态通过插件 KV 存储持久化，重启后依然有效。
@@ -27,7 +30,7 @@ from astrbot.api.star import Context, Star, register
 
 logger = logging.getLogger("astrbot.plugin.anon_relay")
 
-__version__ = "1.8.1"
+__version__ = "1.9.0"
 
 
 @dataclass
@@ -68,7 +71,7 @@ class AnonRelayConfig:
     review_words_file: list = field(default_factory=list)  # 设置页上传的审查词库文件（files/ 相对路径列表）
 
 
-@register("astrbot_plugin_anon_relay", "guishe", "匿名倾诉转述：私聊/群聊开启匿名模式后，将内容以匿名身份转述到指定群聊", __version__)
+@register("astrbot_plugin_anon_relay", "guishe", "匿名树洞：私聊/群聊开启匿名模式后，把倾诉内容以匿名身份转述到指定群聊，群成员看不到真实身份", __version__)
 class AnonRelay(Star):
     def __init__(self, context: Context, config=None):
         super().__init__(context)
