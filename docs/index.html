@@ -12,87 +12,116 @@
 <meta property="og:description" content="给群聊一个可以放心说话的地方。倾诉被匿名转述，真实身份不会出现在群里。">
 <meta property="og:image" content="logo.png">
 <style>
+/* ============================================================
+   匿名树洞 · 设计系统
+   配色与插件图标严格同源（见 _tools/make_anon_logo.py 的 BG_STOPS）
+   ============================================================ */
 :root{
-  --mint:#5FE3C8; --blue:#4B7BE5; --violet:#6A4BE0; --ink:#2B2472;
-  --bg:#F7F9FE; --card:#FFFFFF; --card-2:#F2F6FF;
-  --text:#1C2140; --text-2:#5A6489; --text-3:#8B94B5;
-  --line:rgba(43,36,114,.10);
-  --shadow-sm:0 1px 2px rgba(43,36,114,.06),0 4px 14px rgba(43,36,114,.06);
-  --shadow-md:0 6px 28px rgba(43,36,114,.10),0 1px 3px rgba(43,36,114,.06);
-  --shadow-lg:0 22px 60px rgba(43,36,114,.16);
-  --grad:linear-gradient(120deg,var(--mint),var(--blue) 46%,var(--violet));
-  --grad-soft:linear-gradient(120deg,rgba(95,227,200,.16),rgba(75,123,229,.16) 46%,rgba(106,75,224,.16));
-  --r:18px; --r-sm:12px; --r-lg:26px;
-  --max:1120px;
+  /* 品牌色：与图标渐变一致 */
+  --mint:#6EE7D5; --blue:#4896F0; --violet:#5C52E8; --deep:#3A1E94;
+  /* 中性色 */
+  --bg:#F6F8FE; --bg-alt:#F0F4FD;
+  --card:#FFFFFF; --card-2:#EFF4FE;
+  --text:#141A38; --text-2:#525C82; --text-3:#858FB0;
+  --line:rgba(46,34,132,.10); --line-2:rgba(46,34,132,.16);
+  /* 阴影：统一用 ink 色调，避免发灰 */
+  --sh-1:0 1px 2px rgba(20,26,56,.05),0 3px 10px rgba(46,34,132,.05);
+  --sh-2:0 5px 22px rgba(46,34,132,.09),0 1px 3px rgba(20,26,56,.05);
+  --sh-3:0 20px 52px rgba(46,34,132,.15);
+  /* 渐变 */
+  --grad:linear-gradient(118deg,var(--mint),var(--blue) 42%,var(--violet) 76%,var(--deep));
+  --grad-soft:linear-gradient(118deg,rgba(110,231,213,.18),rgba(72,150,240,.16) 42%,rgba(92,82,232,.18));
+  --grad-line:linear-gradient(90deg,var(--mint),var(--blue) 46%,var(--violet));
+  /* 圆角 / 栅格 */
+  --r-sm:12px; --r:18px; --r-xl:30px;
+  --max:1130px;
 }
+
 *{box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:78px}
+html{scroll-behavior:smooth;scroll-padding-top:84px}
 body{
   margin:0;background:var(--bg);color:var(--text);
   font:16px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
   -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  font-feature-settings:"kern" 1,"liga" 1;
 }
 a{color:var(--blue);text-decoration:none}
 a:hover{text-decoration:underline}
 code,kbd{font-family:ui-monospace,SFMono-Regular,"Cascadia Mono",Menlo,Consolas,monospace;font-size:.9em}
-code{background:var(--card-2);border:1px solid var(--line);border-radius:6px;padding:.12em .42em;color:#3A3F7A;word-break:break-all}
-h1,h2,h3{line-height:1.28;margin:0;letter-spacing:-.015em}
+code{background:var(--card-2);border:1px solid var(--line);border-radius:6px;padding:.12em .44em;color:#39306F;word-break:break-all}
+h1,h2,h3{line-height:1.26;margin:0;letter-spacing:-.02em}
+h2{letter-spacing:-.028em}
+h3{letter-spacing:-.015em}
 .wrap{max-width:var(--max);margin:0 auto;padding:0 22px}
+:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:6px}
 
 /* ---------------- 背景光斑 ---------------- */
 .orbs{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
-.orb{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5;will-change:transform}
-.orb.a{width:520px;height:520px;left:-140px;top:-160px;background:radial-gradient(circle,rgba(95,227,200,.55),transparent 68%);animation:floatA 20s ease-in-out infinite}
-.orb.b{width:620px;height:620px;right:-200px;top:120px;background:radial-gradient(circle,rgba(75,123,229,.42),transparent 68%);animation:floatB 26s ease-in-out infinite}
-.orb.c{width:480px;height:480px;left:32%;bottom:-220px;background:radial-gradient(circle,rgba(106,75,224,.34),transparent 68%);animation:floatC 23s ease-in-out infinite}
+.orb{position:absolute;border-radius:50%;filter:blur(76px);opacity:.46;will-change:transform}
+.orb.a{width:520px;height:520px;left:-150px;top:-170px;background:radial-gradient(circle,rgba(110,231,213,.55),transparent 68%);animation:floatA 22s ease-in-out infinite}
+.orb.b{width:640px;height:640px;right:-210px;top:110px;background:radial-gradient(circle,rgba(72,150,240,.42),transparent 68%);animation:floatB 28s ease-in-out infinite}
+.orb.c{width:490px;height:490px;left:30%;bottom:-230px;background:radial-gradient(circle,rgba(92,82,232,.34),transparent 68%);animation:floatC 25s ease-in-out infinite}
 @keyframes floatA{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(40px,50px,0) scale(1.12)}}
 @keyframes floatB{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(-60px,40px,0) scale(1.08)}}
 @keyframes floatC{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(50px,-46px,0) scale(1.14)}}
 .page{position:relative;z-index:1}
 
 /* ---------------- 导航 ---------------- */
-header.nav{position:sticky;top:0;z-index:50;backdrop-filter:saturate(180%) blur(14px);background:rgba(247,249,254,.82);border-bottom:1px solid transparent;transition:border-color .3s,box-shadow .3s}
-header.nav.stuck{border-bottom-color:var(--line);box-shadow:0 4px 24px rgba(43,36,114,.05)}
-.nav-in{display:flex;align-items:center;gap:14px;height:64px}
-.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;color:var(--text);letter-spacing:-.02em}
+header.nav{position:sticky;top:0;z-index:50;backdrop-filter:saturate(180%) blur(16px);background:rgba(246,248,254,.80);border-bottom:1px solid transparent;transition:border-color .3s,box-shadow .3s,background .3s}
+header.nav.stuck{border-bottom-color:var(--line);box-shadow:0 4px 26px rgba(46,34,132,.06);background:rgba(246,248,254,.92)}
+.nav-in{display:flex;align-items:center;gap:14px;height:66px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;color:var(--text);letter-spacing:-.025em;flex:none}
 .brand:hover{text-decoration:none}
-.brand img{width:32px;height:32px;border-radius:9px;box-shadow:var(--shadow-sm)}
-.nav-links{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
-.nav-links a{color:var(--text-2);font-size:14.5px;font-weight:600;padding:7px 12px;border-radius:9px;transition:background .2s,color .2s;position:relative}
+.brand img{width:33px;height:33px;border-radius:10px;box-shadow:var(--sh-1)}
+.nav-links{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap}
+.nav-links a{color:var(--text-2);font-size:14.5px;font-weight:600;padding:7px 12px;border-radius:10px;transition:background .2s,color .2s;position:relative}
 .nav-links a:hover{background:var(--card-2);color:var(--text);text-decoration:none}
-.nav-links a.act{color:var(--blue);background:rgba(75,123,229,.10)}
-@media(max-width:760px){.nav-links a{padding:6px 9px;font-size:13.5px}.nav-links{gap:1px}}
+.nav-links a.act{color:var(--blue);background:rgba(72,150,240,.11)}
+.nav-links a.act::after{content:"";position:absolute;left:12px;right:12px;bottom:2px;height:2px;border-radius:2px;background:var(--grad-line)}
+@media(max-width:800px){.nav-links a{padding:6px 9px;font-size:13.5px}.nav-links{gap:0}}
 
-/* ---------------- 通用 ---------------- */
-section{padding:82px 0;position:relative}
-.sec-head{text-align:center;max-width:760px;margin:0 auto 44px}
-.eyebrow{display:inline-block;font-size:12.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);background:var(--grad-soft);border:1px solid rgba(75,123,229,.18);padding:5px 13px;border-radius:999px;margin-bottom:16px}
-.sec-head h2{font-size:clamp(24px,3.4vw,36px)}
-.sec-head p{color:var(--text-2);margin:14px 0 0;font-size:16.5px}
+/* ---------------- 通用版块 ---------------- */
+section{padding:88px 0;position:relative}
+section.alt{background:var(--bg-alt)}
+section.alt::before,section.alt::after{content:"";position:absolute;left:0;right:0;height:1px;background:var(--line)}
+section.alt::before{top:0}
+section.alt::after{bottom:0}
+.sec-head{text-align:center;max-width:770px;margin:0 auto 46px}
+.eyebrow{display:inline-block;font-size:12px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--violet);background:var(--grad-soft);border:1px solid rgba(92,82,232,.18);padding:5px 14px;border-radius:999px;margin-bottom:16px}
+.sec-head h2{font-size:clamp(25px,3.5vw,37px)}
+.sec-head p{color:var(--text-2);margin:15px 0 0;font-size:16.5px}
+.sec-head h2::after{content:"";display:block;width:46px;height:3px;border-radius:3px;background:var(--grad-line);margin:20px auto 0}
+.sub-head{display:flex;align-items:center;gap:11px;margin:0 0 16px 2px;font-size:16.5px}
+.sub-head::before{content:"";width:4px;height:19px;border-radius:3px;background:var(--grad-line);flex:none}
 .grad-text{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 
 /* ---------------- Hero ---------------- */
-.hero{padding:66px 0 74px;text-align:center}
-.hero .logo{width:118px;height:118px;border-radius:28px;box-shadow:var(--shadow-lg);animation:logoIn .9s cubic-bezier(.2,.8,.2,1) both, breathe 6s ease-in-out 1s infinite}
-@keyframes logoIn{from{opacity:0;transform:translateY(24px) scale(.9)}to{opacity:1;transform:none}}
+.hero{padding:70px 0 78px;text-align:center}
+.hero .logo{width:122px;height:122px;border-radius:30px;box-shadow:var(--sh-3);animation:logoIn .9s cubic-bezier(.2,.8,.2,1) both, breathe 6s ease-in-out 1s infinite}
+@keyframes logoIn{from{opacity:0;transform:translateY(26px) scale(.9)}to{opacity:1;transform:none}}
 @keyframes breathe{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-.hero h1{font-size:clamp(34px,6vw,62px);margin:26px 0 0;font-weight:900;letter-spacing:-.035em}
+.hero h1{font-size:clamp(35px,6.2vw,65px);margin:28px 0 0;font-weight:900;letter-spacing:-.04em;line-height:1.14}
 .hero h1 .grad-text{background-size:220% 100%;animation:hueShift 9s ease-in-out infinite}
 @keyframes hueShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
-.hero .tag{font-size:clamp(16px,2.2vw,20px);color:var(--text-2);max-width:660px;margin:18px auto 0}
+.hero .tag{font-size:clamp(16px,2.15vw,19.5px);color:var(--text-2);max-width:680px;margin:20px auto 0;line-height:1.72}
 .hero .tag strong{color:var(--text)}
-.hero .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:32px}
-.btn{display:inline-flex;align-items:center;gap:9px;padding:13px 26px;border-radius:14px;font-weight:700;font-size:15.5px;border:1px solid transparent;transition:transform .18s,box-shadow .25s,background .2s;position:relative;overflow:hidden}
+.hero .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:34px}
+.btn{display:inline-flex;align-items:center;gap:9px;padding:13px 27px;border-radius:14px;font-weight:700;font-size:15.5px;border:1px solid transparent;transition:transform .18s,box-shadow .25s,border-color .2s;position:relative;overflow:hidden}
 .btn:hover{text-decoration:none;transform:translateY(-2px)}
-.btn.primary{background:var(--grad);color:#fff;box-shadow:0 10px 28px rgba(75,123,229,.34);background-size:200% 100%}
-.btn.primary:hover{box-shadow:0 16px 38px rgba(75,123,229,.42)}
-.btn.primary::after{content:"";position:absolute;top:0;left:-140%;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.42),transparent);transform:skewX(-18deg);animation:shine 3.6s ease-in-out infinite}
-@keyframes shine{0%,60%{left:-140%}100%{left:150%}}
-.btn.ghost{background:var(--card);color:var(--text);border-color:var(--line);box-shadow:var(--shadow-sm)}
-.btn.ghost:hover{border-color:rgba(75,123,229,.35)}
-.chips{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:26px}
-.chip{font-size:13px;font-weight:700;color:var(--text-2);background:var(--card);border:1px solid var(--line);padding:6px 13px;border-radius:999px;box-shadow:var(--shadow-sm)}
-.chip b{color:var(--blue)}
+.btn.primary{background:var(--grad);color:#fff;box-shadow:0 10px 28px rgba(72,150,240,.34);background-size:200% 100%}
+.btn.primary:hover{box-shadow:0 16px 40px rgba(72,150,240,.44)}
+.btn.primary::after{content:"";position:absolute;top:0;left:-140%;width:58%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.44),transparent);transform:skewX(-18deg);animation:shine 3.8s ease-in-out infinite}
+@keyframes shine{0%,62%{left:-140%}100%{left:150%}}
+.btn.ghost{background:var(--card);color:var(--text);border-color:var(--line-2);box-shadow:var(--sh-1)}
+.btn.ghost:hover{border-color:rgba(72,150,240,.42)}
+
+/* ---------------- 数字看板 ---------------- */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:52px}
+@media(max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px 14px;box-shadow:var(--sh-1);position:relative;overflow:hidden}
+.stat::after{content:"";position:absolute;left:0;top:0;height:3px;width:100%;background:var(--grad-line);opacity:.85}
+.stat .v{font-size:clamp(26px,3.4vw,34px);font-weight:900;letter-spacing:-.035em;line-height:1.1;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat .l{font-size:13px;color:var(--text-3);font-weight:700;margin-top:5px;letter-spacing:.01em}
 
 /* ---------------- 滚动浮现 ---------------- */
 .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.8,.2,1),transform .7s cubic-bezier(.2,.8,.2,1)}
@@ -103,46 +132,52 @@ section{padding:82px 0;position:relative}
 .g3{grid-template-columns:repeat(3,1fr)}
 .g4{grid-template-columns:repeat(4,1fr)}
 .g2{grid-template-columns:repeat(2,1fr)}
-@media(max-width:940px){.g3,.g4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:960px){.g3,.g4{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:620px){.g3,.g4,.g2{grid-template-columns:1fr}}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;transition:transform .28s cubic-bezier(.2,.8,.2,1),box-shadow .28s,border-color .28s}
-.card::before{content:"";position:absolute;inset:0;background:radial-gradient(340px circle at var(--mx,50%) var(--my,0%),rgba(75,123,229,.10),transparent 62%);opacity:0;transition:opacity .3s}
-.card:hover{transform:translateY(-4px);box-shadow:var(--shadow-md);border-color:rgba(75,123,229,.24)}
-.card:hover::before{opacity:1}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:23px;box-shadow:var(--sh-1);position:relative;overflow:hidden;transition:transform .28s cubic-bezier(.2,.8,.2,1),box-shadow .28s,border-color .28s}
+.card::before{content:"";position:absolute;inset:0;background:radial-gradient(340px circle at var(--mx,50%) var(--my,0%),rgba(72,150,240,.10),transparent 62%);opacity:0;transition:opacity .3s;pointer-events:none}
+.card::after{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:var(--grad-line);opacity:0;transition:opacity .3s}
+.card:hover{transform:translateY(-4px);box-shadow:var(--sh-2);border-color:rgba(72,150,240,.26)}
+.card:hover::before,.card:hover::after{opacity:1}
 .card>*{position:relative}
-.ico{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:20px;background:var(--grad-soft);border:1px solid rgba(75,123,229,.16);margin-bottom:14px}
-.card h3{font-size:16.5px;margin-bottom:7px}
-.card p{margin:0;color:var(--text-2);font-size:14.5px;line-height:1.72}
-.card .hint{display:flex;align-items:center;gap:5px;margin-top:13px;font-size:13px;font-weight:700;color:var(--blue);cursor:pointer;user-select:none;transition:color .2s}
+/* 图标：内联 SVG，替换原先的 emoji */
+.ico{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;background:var(--grad-soft);border:1px solid rgba(92,82,232,.16);margin-bottom:15px;color:var(--violet)}
+.ico svg{width:23px;height:23px;display:block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.card:hover .ico{color:var(--blue)}
+.card h3{font-size:16.5px;margin-bottom:8px}
+.card p{margin:0;color:var(--text-2);font-size:14.5px;line-height:1.74}
+.card .hint{display:inline-flex;align-items:center;gap:6px;margin-top:14px;font-size:13px;font-weight:700;color:var(--blue);cursor:pointer;user-select:none;transition:color .2s,background .2s;padding:4px 10px 4px 0;border-radius:8px}
 .card .hint:hover{color:var(--violet)}
-.card .hint span.ar{display:inline-block;transition:transform .3s}
+.card .hint span.ar{display:inline-block;transition:transform .3s;font-size:10px}
 .card.open .hint span.ar{transform:rotate(180deg)}
 .card-more{max-height:0;overflow:hidden;transition:max-height .42s cubic-bezier(.2,.8,.2,1),margin .42s,opacity .3s;opacity:0;margin-top:0}
-.card.open .card-more{opacity:1;margin-top:12px}
-.card-more ul{margin:0;padding-left:18px;color:var(--text-2);font-size:14px;line-height:1.8}
+.card.open .card-more{opacity:1;margin-top:13px}
+.card-more ul{margin:0;padding-left:18px;color:var(--text-2);font-size:14px;line-height:1.82}
 .card-more li::marker{color:var(--blue)}
-.card-more .kv{margin-top:10px;font-size:13.5px;color:var(--text-3)}
+.card-more li+li{margin-top:3px}
+.card-more .kv{margin-top:11px;font-size:13.5px;color:var(--text-3);padding-top:10px;border-top:1px dashed var(--line-2)}
 .card-more .kv code{font-size:12.5px}
 
 /* ---------------- 流程 ---------------- */
 .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;position:relative}
-@media(max-width:860px){.flow{grid-template-columns:1fr 1fr}}
+@media(max-width:880px){.flow{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.flow{grid-template-columns:1fr}}
-.step{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px;box-shadow:var(--shadow-sm);position:relative}
-.step .n{width:30px;height:30px;border-radius:9px;background:var(--grad);color:#fff;font-weight:800;font-size:14px;display:grid;place-items:center;margin-bottom:12px;box-shadow:0 6px 16px rgba(75,123,229,.3)}
-.step h3{font-size:15.5px;margin-bottom:6px}
+.step{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:21px;box-shadow:var(--sh-1);position:relative;transition:transform .28s,box-shadow .28s}
+.step:hover{transform:translateY(-3px);box-shadow:var(--sh-2)}
+.step .n{width:31px;height:31px;border-radius:10px;background:var(--grad);color:#fff;font-weight:800;font-size:14px;display:grid;place-items:center;margin-bottom:13px;box-shadow:0 6px 16px rgba(92,82,232,.3)}
+.step h3{font-size:15.5px;margin-bottom:7px}
 .step p{margin:0;color:var(--text-2);font-size:14px}
 .step code{font-size:12.5px}
 
 /* ---------------- 聊天气泡演示 ---------------- */
 .demo{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-@media(max-width:760px){.demo{grid-template-columns:1fr}}
-.chat{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px;box-shadow:var(--shadow-md)}
-.chat .bar{display:flex;align-items:center;gap:9px;padding-bottom:13px;border-bottom:1px solid var(--line);margin-bottom:16px}
+@media(max-width:780px){.demo{grid-template-columns:1fr}}
+.chat{background:var(--card);border:1px solid var(--line);border-radius:var(--r-xl);padding:21px;box-shadow:var(--sh-2)}
+.chat .bar{display:flex;align-items:center;gap:9px;padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:17px}
 .chat .bar i{width:10px;height:10px;border-radius:50%;display:block}
 .chat .bar i:nth-child(1){background:#FF5F57}.chat .bar i:nth-child(2){background:#FEBC2E}.chat .bar i:nth-child(3){background:#28C840}
 .chat .bar b{margin-left:6px;font-size:13.5px;color:var(--text-2);font-weight:700}
-.bub{max-width:84%;padding:10px 14px;border-radius:15px;font-size:14px;line-height:1.62;margin-bottom:10px;opacity:0;transform:translateY(10px) scale(.97);position:relative;box-shadow:var(--shadow-sm)}
+.bub{max-width:84%;padding:10px 14px;border-radius:15px;font-size:14px;line-height:1.64;margin-bottom:10px;opacity:0;transform:translateY(10px) scale(.97);position:relative;box-shadow:var(--sh-1)}
 .chat.go .bub{animation:bubbleIn .5s cubic-bezier(.2,.9,.2,1) forwards}
 .chat.go .bub:nth-child(3){animation-delay:.05s}
 .chat.go .bub:nth-child(4){animation-delay:.45s}
@@ -154,51 +189,52 @@ section{padding:82px 0;position:relative}
 .bub.me{background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff;margin-left:auto;border-bottom-right-radius:5px}
 .bub.bot{background:var(--card-2);border:1px solid var(--line);border-bottom-left-radius:5px;color:var(--text)}
 .bub .who{display:block;font-size:11.5px;font-weight:800;opacity:.72;margin-bottom:3px;letter-spacing:.02em}
-.bub.out{background:#fff;border:1px dashed rgba(75,123,229,.4);color:var(--text-2);max-width:100%;font-size:13.5px}
+.bub.out{background:#fff;border:1px dashed rgba(72,150,240,.42);color:var(--text-2);max-width:100%;font-size:13.5px}
 .bub.out b{color:var(--text)}
 
 /* ---------------- 表格 ---------------- */
-.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--card);box-shadow:var(--shadow-sm)}
-table{width:100%;border-collapse:collapse;font-size:14.5px;min-width:540px}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--card);box-shadow:var(--sh-1)}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:14.5px;min-width:540px}
 th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}
-th{background:var(--card-2);font-size:13px;font-weight:800;color:var(--text-2);letter-spacing:.02em;white-space:nowrap}
+th{background:var(--card-2);font-size:12.5px;font-weight:800;color:var(--text-2);letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
 tr:last-child td{border-bottom:none}
 tbody tr{transition:background .18s}
-tbody tr:hover{background:rgba(75,123,229,.045)}
+tbody tr:nth-child(even){background:rgba(72,150,240,.022)}
+tbody tr:hover{background:rgba(72,150,240,.055)}
 td code{white-space:nowrap}
-.tag{display:inline-block;font-size:11.5px;font-weight:800;padding:2px 9px;border-radius:999px;background:var(--grad-soft);border:1px solid rgba(75,123,229,.2);color:var(--blue);white-space:nowrap}
-.tag.req{background:rgba(255,110,110,.12);border-color:rgba(255,110,110,.3);color:#D64545}
-.tag.rec{background:rgba(95,227,200,.16);border-color:rgba(95,227,200,.4);color:#0E8F72}
+.tag{display:inline-block;font-size:11.5px;font-weight:800;padding:2px 9px;border-radius:999px;background:var(--grad-soft);border:1px solid rgba(92,82,232,.2);color:var(--violet);white-space:nowrap;margin-left:6px}
+.tag.req{background:rgba(230,90,90,.12);border-color:rgba(230,90,90,.3);color:#C93A3A}
+.tag.rec{background:rgba(110,231,213,.18);border-color:rgba(110,231,213,.45);color:#0B8368}
 
 /* ---------------- 提示块 ---------------- */
-.note{display:flex;gap:13px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:var(--r-sm);padding:16px 18px;box-shadow:var(--shadow-sm);margin-top:16px}
-.note .ni{font-size:19px;line-height:1.4}
+.note{display:flex;gap:13px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:var(--r-sm);padding:16px 18px;box-shadow:var(--sh-1);margin-top:16px}
+.note .ni{font-size:19px;line-height:1.45;flex:none}
 .note p{margin:0;color:var(--text-2);font-size:14.5px}
 .note b{color:var(--text)}
 .note.warn{border-left-color:#E8A33D}
 .note.sec{border-left-color:var(--mint)}
 
 /* ---------------- FAQ ---------------- */
-details{background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);box-shadow:var(--shadow-sm);margin-bottom:10px;overflow:hidden;transition:box-shadow .25s,border-color .25s}
-details[open]{box-shadow:var(--shadow-md);border-color:rgba(75,123,229,.22)}
-summary{cursor:pointer;padding:15px 18px;font-weight:700;font-size:15px;list-style:none;display:flex;align-items:center;gap:10px;transition:color .2s}
+details{background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);box-shadow:var(--sh-1);margin-bottom:10px;overflow:hidden;transition:box-shadow .25s,border-color .25s}
+details[open]{box-shadow:var(--sh-2);border-color:rgba(72,150,240,.24)}
+summary{cursor:pointer;padding:15px 18px;font-weight:700;font-size:15px;list-style:none;display:flex;align-items:center;gap:11px;transition:color .2s}
 summary:hover{color:var(--blue)}
 summary::-webkit-details-marker{display:none}
-summary::before{content:"＋";color:var(--blue);font-weight:800;transition:transform .3s;display:inline-block}
-details[open] summary::before{content:"－"}
-details p{margin:0;padding:0 18px 16px 42px;color:var(--text-2);font-size:14.5px}
+summary::before{content:"+";flex:none;width:20px;height:20px;border-radius:6px;background:var(--grad-soft);border:1px solid rgba(92,82,232,.2);display:grid;place-items:center;color:var(--violet);font-weight:800;font-size:14px;line-height:1;transition:background .2s,color .2s}
+details[open] summary::before{content:"−";background:rgba(72,150,240,.14);color:var(--blue)}
+details p{margin:0;padding:0 18px 17px 49px;color:var(--text-2);font-size:14.5px}
 
 /* ---------------- 支持 ---------------- */
 .support{text-align:center}
-.support .card{display:inline-block;text-align:center;padding:30px 34px;max-width:520px}
-.qr{width:190px;height:190px;border-radius:14px;border:1px solid var(--line);box-shadow:var(--shadow-sm);background:#fff;padding:6px;transition:transform .3s}
+.support .card{display:inline-block;text-align:center;padding:32px 36px;max-width:520px}
+.qr{width:192px;height:192px;border-radius:14px;border:1px solid var(--line);box-shadow:var(--sh-1);background:#fff;padding:6px;transition:transform .3s}
 .qr:hover{transform:scale(1.035) rotate(-1deg)}
-.star-btn{margin-bottom:20px}
+.star-btn{margin-bottom:22px}
 
 /* ---------------- 页脚 ---------------- */
-footer{border-top:1px solid var(--line);padding:38px 0 46px;color:var(--text-3);font-size:14px;text-align:center;background:rgba(255,255,255,.5)}
+footer{border-top:1px solid var(--line);padding:40px 0 48px;color:var(--text-3);font-size:14px;text-align:center;background:rgba(255,255,255,.55)}
 footer a{color:var(--text-2)}
-.foot-links{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+.foot-links{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin-bottom:15px}
 
 @media(prefers-reduced-motion:reduce){
   *{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
@@ -247,12 +283,11 @@ footer a{color:var(--text-2)}
       <a class="btn primary" href="#install">↓ 立即安装</a>
       <a class="btn ghost" href="https://github.com/yuntaojinghong/astrbot_plugin_anon_relay">在 GitHub 查看</a>
     </div>
-    <div class="chips">
-      <span class="chip">AstrBot <b>&#8805;4.16</b></span>
-      <span class="chip"><b>101</b> 项离线测试</span>
-      <span class="chip"><b>0</b> 第三方依赖</span>
-      <span class="chip"><b>MIT</b> 开源</span>
-      <span class="chip">多平台消息通道</span>
+    <div class="stats reveal">
+      <div class="stat"><div class="v" data-count="101">0</div><div class="l">离线回归测试</div></div>
+      <div class="stat"><div class="v" data-count="32">0</div><div class="l">可调配置项</div></div>
+      <div class="stat"><div class="v" data-count="16">0</div><div class="l">支持的消息平台</div></div>
+      <div class="stat"><div class="v" data-count="0">0</div><div class="l">第三方依赖</div></div>
     </div>
   </div>
 </section>
@@ -268,12 +303,12 @@ footer a{color:var(--text-2)}
 
     <div class="grid g2">
       <div class="card reveal">
-        <div class="ico">📎</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2.6 12S6.1 6.6 12 6.6 21.4 12 21.4 12 17.9 17.4 12 17.4 2.6 12 2.6 12Z"/><circle cx="12" cy="12" r="3"/></svg></div>
         <h3>转发 = 信息全暴露</h3>
         <p>转发聊天记录会连同发送者昵称、头像、时间戳一起呈现，任何人点开都能定位到真人。想要匿名，必须<strong>丢弃原始消息</strong>。</p>
       </div>
       <div class="card reveal">
-        <div class="ico">🪄</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4.2 8.6A8 8 0 0 1 18.4 6.5L21 9.1"/><path d="M21 4.6V9.1h-4.5"/><path d="M19.8 15.4A8 8 0 0 1 5.6 17.5L3 14.9"/><path d="M3 19.4v-4.5h4.5"/></svg></div>
         <h3>树洞 = 重新拼装一条新消息</h3>
         <p>插件由机器人以自身身份<strong>新建一条消息</strong>发出，格式为「匿名昵称 + 内容」，不携带任何原作者字段。群里看到的只有 <code>【番茄】：……</code></p>
       </div>
@@ -290,7 +325,7 @@ footer a{color:var(--text-2)}
 </section>
 
 <!-- ===== 工作流程 ===== -->
-<section id="flow">
+<section id="flow" class="alt">
   <div class="wrap">
     <div class="sec-head reveal">
       <span class="eyebrow">Flow</span>
@@ -324,10 +359,10 @@ footer a{color:var(--text-2)}
       <p>点开任意卡片查看详细说明。</p>
     </div>
 
-    <h3 style="margin:0 0 14px 4px;font-size:17px" class="reveal">匿名转述</h3>
+    <h3 class="sub-head reveal">匿名转述</h3>
     <div class="grid g3" style="margin-bottom:34px">
       <div class="card reveal">
-        <div class="ico">🗣️</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c0-3.9 3.4-7 7.5-7s7.5 3.1 7.5 7"/><path d="M18.5 3.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></svg></div>
         <h3>私聊自动匿名</h3>
         <p>白名单外的人私聊机器人<strong>直接进入匿名模式</strong>，第一句话就开始转述，无需记任何命令。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
@@ -342,7 +377,7 @@ footer a{color:var(--text-2)}
       </div>
 
       <div class="card reveal">
-        <div class="ico">🔒</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="9.5" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/><circle cx="12" cy="15.3" r="1.2"/></svg></div>
         <h3>白名单自由聊天</h3>
         <p>白名单内的人是普通用户，与机器人正常对话（LLM 正常回复）；想匿名时发送「开启匿名模式」即可。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
@@ -357,7 +392,7 @@ footer a{color:var(--text-2)}
       </div>
 
       <div class="card reveal">
-        <div class="ico">💬</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 5.6A1.6 1.6 0 0 1 4.6 4h10.8A1.6 1.6 0 0 1 17 5.6v5.8a1.6 1.6 0 0 1-1.6 1.6H8.2L3 17V5.6Z"/><path d="M19.5 8.6A1.5 1.5 0 0 1 21 10.1v7.2L17.4 15h-6"/></svg></div>
         <h3>群聊模式</h3>
         <p>群内直接发送「开启匿名模式」，之后该群消息会被转述；默认转述回本群，也可映射到别的群。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
@@ -372,7 +407,7 @@ footer a{color:var(--text-2)}
       </div>
 
       <div class="card reveal">
-        <div class="ico">🤐</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 6a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8.5l-5 4V6Z"/><path d="M9.2 7.6l5.6 6.4M14.8 7.6l-5.6 6.4"/></svg></div>
         <h3>沉默拦截</h3>
         <p>未开启匿名模式的私聊默认被静默拦截，不回复也不触发 LLM；群聊未开启时完全不干预。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
@@ -386,7 +421,7 @@ footer a{color:var(--text-2)}
       </div>
 
       <div class="card reveal">
-        <div class="ico">🎲</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4.5"/><circle cx="9" cy="9" r="1.05"/><circle cx="15" cy="9" r="1.05"/><circle cx="12" cy="12" r="1.05"/><circle cx="9" cy="15" r="1.05"/><circle cx="15" cy="15" r="1.05"/></svg></div>
         <h3>随机昵称池</h3>
         <p>从水果昵称池随机抽取并长期绑定；池为空时回退为「匿名者-001」编号。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
@@ -401,7 +436,7 @@ footer a{color:var(--text-2)}
       </div>
 
       <div class="card reveal">
-        <div class="ico">🧩</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M3.5 9.2h17"/><path d="M7.6 13h4.4M7.6 16.3h7.4"/></svg></div>
         <h3>格式模板</h3>
         <p>默认 <code>【{name}】：{content}</code>，支持 <code>{name}</code> <code>{content}</code> <code>{time}</code> 占位符。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
@@ -416,10 +451,10 @@ footer a{color:var(--text-2)}
       </div>
     </div>
 
-    <h3 style="margin:0 0 14px 4px;font-size:17px" class="reveal">转述目标</h3>
+    <h3 class="sub-head reveal">转述目标</h3>
     <div class="grid g4" style="margin-bottom:34px">
       <div class="card reveal">
-        <div class="ico">🗺️</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="6" cy="6.5" r="2.6"/><circle cx="18" cy="17.5" r="2.6"/><path d="M8.6 6.5h3.9a3.4 3.4 0 0 1 3.4 3.4v5.2"/></svg></div>
         <h3>用户映射规则</h3>
         <p><code>user_target_rules</code> 精确指定某人的倾诉去向，优先级最高。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
@@ -434,7 +469,7 @@ footer a{color:var(--text-2)}
       </div>
 
       <div class="card reveal">
-        <div class="ico">🔍</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10.6" cy="10.6" r="6.1"/><path d="M15.1 15.1l5 5"/><circle cx="10.6" cy="10.6" r="2.1"/></svg></div>
         <h3>自动识别所在群</h3>
         <p>私聊时查出倾诉者在哪些候选群里，A 群的人转到 A 群；同时在 A、B 群则两处都转。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
@@ -449,7 +484,7 @@ footer a{color:var(--text-2)}
       </div>
 
       <div class="card reveal">
-        <div class="ico">🧭</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1 5.1-2.1Z"/></svg></div>
         <h3>群聊映射规则</h3>
         <p><code>group_target_rules</code> 决定群内开启匿名模式后转述到哪。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
@@ -464,7 +499,7 @@ footer a{color:var(--text-2)}
       </div>
 
       <div class="card reveal">
-        <div class="ico">📮</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 13.4h4l1.4 2.6h6.2l1.4-2.6h4"/><path d="M5.6 5.5h12.8l2.1 7.9v3.1a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2v-3.1l2.1-7.9Z"/></svg></div>
         <h3>统一兜底</h3>
         <p>以上规则都没命中时，落到 <code>target_group_ids</code>（多群逗号分隔）。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
@@ -478,10 +513,10 @@ footer a{color:var(--text-2)}
       </div>
     </div>
 
-    <h3 style="margin:0 0 14px 4px;font-size:17px" class="reveal">治理与安全</h3>
+    <h3 class="sub-head reveal">治理与安全</h3>
     <div class="grid g3">
       <div class="card reveal">
-        <div class="ico">🛡️</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.4l7.2 2.6v5.6c0 4.3-3 7.8-7.2 9.1-4.2-1.3-7.2-4.8-7.2-9.1V6l7.2-2.6Z"/><path d="M8.7 11.9l2.4 2.4 4.2-4.5"/></svg></div>
         <h3>内容审查</h3>
         <p>命中 <code>review_words</code> 直接拦截不转述，并告知倾诉者；每条消息<strong>独立判断</strong>。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
@@ -496,7 +531,7 @@ footer a{color:var(--text-2)}
       </div>
 
       <div class="card reveal">
-        <div class="ico">🧼</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.2 20.8L14.1 9.9"/><path d="M12.6 8.4l3.6 3.6"/><path d="M17.4 3.6v3.2M15.8 5.2h3.2M19.8 10.2v2.6M18.5 11.5h2.6"/></svg></div>
         <h3>脏话自动和谐</h3>
         <p>命中 <code>bad_words</code> 自动替换为 <code>censor_mask</code>（默认 <code>**</code>）后照常转述。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
@@ -511,7 +546,7 @@ footer a{color:var(--text-2)}
       </div>
 
       <div class="card reveal">
-        <div class="ico">🚫</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M6.4 6.4l11.2 11.2"/></svg></div>
         <h3>身份管控</h3>
         <p>管理员可「禁言 昵称 分钟」「永久禁用 昵称」，按匿名昵称生效，重启不丢。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
@@ -526,7 +561,7 @@ footer a{color:var(--text-2)}
       </div>
 
       <div class="card reveal">
-        <div class="ico">📄</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6.2 3.6h6.9l4.7 4.7v12a1.1 1.1 0 0 1-1.1 1.1H6.2a1.1 1.1 0 0 1-1.1-1.1V4.7a1.1 1.1 0 0 1 1.1-1.1Z"/><path d="M13 3.6v5h5"/><path d="M8.6 13.2h7M8.6 16.6h4.4"/></svg></div>
         <h3>词库 txt 批量导入</h3>
         <p>和谐/审查/昵称三个词库都能在设置页上传，或管理员在聊天中直接发 txt。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
@@ -541,7 +576,7 @@ footer a{color:var(--text-2)}
       </div>
 
       <div class="card reveal">
-        <div class="ico">💾</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6.4" rx="7.2" ry="3"/><path d="M4.8 6.4v11.2c0 1.7 3.2 3 7.2 3s7.2-1.3 7.2-3V6.4"/><path d="M4.8 12c0 1.7 3.2 3 7.2 3s7.2-1.3 7.2-3"/></svg></div>
         <h3>状态持久化</h3>
         <p>会话与名单存在插件 KV 存储中，重启不丢。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
@@ -556,7 +591,7 @@ footer a{color:var(--text-2)}
       </div>
 
       <div class="card reveal">
-        <div class="ico">📡</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.2"/><path d="M8.2 15.8a5.4 5.4 0 0 1 0-7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6"/><path d="M5.4 18.6a9.4 9.4 0 0 1 0-13.2M18.6 5.4a9.4 9.4 0 0 1 0 13.2"/></svg></div>
         <h3>多平台</h3>
         <p>QQ / Telegram / 微信 / 飞书 / Discord 等，通过 AstrBot 统一消息通道发送。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
@@ -574,7 +609,7 @@ footer a{color:var(--text-2)}
 </section>
 
 <!-- ===== 效果演示 ===== -->
-<section id="demo">
+<section id="demo" class="alt">
   <div class="wrap">
     <div class="sec-head reveal">
       <span class="eyebrow">Demo</span>
@@ -625,7 +660,7 @@ footer a{color:var(--text-2)}
       <p>WebUI → 插件管理 → 「匿名树洞」→ 配置。表单由 <code>_conf_schema.json</code> 自动生成，共 32 项。</p>
     </div>
 
-    <h3 style="margin:0 0 12px 4px;font-size:16.5px" class="reveal">最关键的三项</h3>
+    <h3 class="sub-head reveal">最关键的三项</h3>
     <div class="tbl-wrap reveal" style="margin-bottom:30px">
       <table>
         <thead><tr><th>配置键</th><th>默认</th><th>说明</th></tr></thead>
@@ -637,7 +672,7 @@ footer a{color:var(--text-2)}
       </table>
     </div>
 
-    <h3 style="margin:0 0 12px 4px;font-size:16.5px" class="reveal">会话与权限</h3>
+    <h3 class="sub-head reveal">会话与权限</h3>
     <div class="tbl-wrap reveal" style="margin-bottom:30px">
       <table>
         <thead><tr><th>配置键</th><th>默认</th><th>说明</th></tr></thead>
@@ -655,7 +690,7 @@ footer a{color:var(--text-2)}
       </table>
     </div>
 
-    <h3 style="margin:0 0 12px 4px;font-size:16.5px" class="reveal">转述格式</h3>
+    <h3 class="sub-head reveal">转述格式</h3>
     <div class="tbl-wrap reveal" style="margin-bottom:30px">
       <table>
         <thead><tr><th>配置键</th><th>默认</th><th>说明</th></tr></thead>
@@ -671,7 +706,7 @@ footer a{color:var(--text-2)}
       </table>
     </div>
 
-    <h3 style="margin:0 0 12px 4px;font-size:16.5px" class="reveal">转述目标映射</h3>
+    <h3 class="sub-head reveal">转述目标映射</h3>
     <div class="tbl-wrap reveal" style="margin-bottom:30px">
       <table>
         <thead><tr><th>配置键</th><th>默认</th><th>说明</th></tr></thead>
@@ -683,7 +718,7 @@ footer a{color:var(--text-2)}
       </table>
     </div>
 
-    <h3 style="margin:0 0 12px 4px;font-size:16.5px" class="reveal">内容治理</h3>
+    <h3 class="sub-head reveal">内容治理</h3>
     <div class="tbl-wrap reveal">
       <table>
         <thead><tr><th>配置键</th><th>默认</th><th>说明</th></tr></thead>
@@ -699,7 +734,7 @@ footer a{color:var(--text-2)}
       </table>
     </div>
 
-    <h3 style="margin:36px 0 12px 4px;font-size:16.5px" class="reveal">管理员命令</h3>
+    <h3 class="sub-head reveal" style="margin-top:36px">管理员命令</h3>
     <div class="tbl-wrap reveal">
       <table>
         <thead><tr><th>命令</th><th>效果</th></tr></thead>
@@ -726,7 +761,7 @@ footer a{color:var(--text-2)}
 </section>
 
 <!-- ===== 安装 ===== -->
-<section id="install">
+<section id="install" class="alt">
   <div class="wrap">
     <div class="sec-head reveal">
       <span class="eyebrow">Install</span>
@@ -736,7 +771,7 @@ footer a{color:var(--text-2)}
 
     <div class="grid g3">
       <div class="card reveal">
-        <div class="ico">📦</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.6 7.9L12 3.6l8.4 4.3v8.2L12 20.4l-8.4-4.3V7.9Z"/><path d="M3.6 7.9L12 12.1l8.4-4.2M12 12.1v8.3"/></svg></div>
         <h3>方式一 · 下载 zip 上传 <span class="tag rec">推荐</span></h3>
         <p>下载最新安装包，在 WebUI 插件管理里上传，重载插件，填好目标群号即可。</p>
         <div class="hint">展开步骤<span class="ar">▼</span></div>
@@ -752,7 +787,7 @@ footer a{color:var(--text-2)}
       </div>
 
       <div class="card reveal">
-        <div class="ico">🔗</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 13.6a3.6 3.6 0 0 0 5.1 0l2.9-2.9a3.6 3.6 0 0 0-5.1-5.1l-1 1"/><path d="M14 10.4a3.6 3.6 0 0 0-5.1 0l-2.9 2.9a3.6 3.6 0 0 0 5.1 5.1l1-1"/></svg></div>
         <h3>方式二 · 从 GitHub 仓库安装</h3>
         <p>在插件管理里选择「从 GitHub 仓库安装」，填入仓库地址。要求服务器能访问 GitHub。</p>
         <div class="hint">展开步骤<span class="ar">▼</span></div>
@@ -766,7 +801,7 @@ footer a{color:var(--text-2)}
       </div>
 
       <div class="card reveal">
-        <div class="ico">🗂️</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.6 7a2 2 0 0 1 2-2h3.3l2 2.5h7.5a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5.6a2 2 0 0 1-2-2V7Z"/><path d="M3.6 11h16.8"/></svg></div>
         <h3>方式三 · 手动复制文件夹</h3>
         <p>把整个插件目录放进 AstrBot 的 plugins 目录，然后在 WebUI 里重载插件。</p>
         <div class="hint">展开步骤<span class="ar">▼</span></div>
@@ -802,22 +837,22 @@ footer a{color:var(--text-2)}
 
     <div class="grid g2">
       <div class="card reveal">
-        <div class="ico">✅</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.2 12.2l2.6 2.6 5-5.4"/></svg></div>
         <h3>只保存最小状态</h3>
         <p>会话状态（用户平台标识 → 匿名编号、时间）与管理名单，存放在 AstrBot 的插件 KV 存储中，重启不丢。</p>
       </div>
       <div class="card reveal">
-        <div class="ico">🚫</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M6.4 6.4l11.2 11.2"/></svg></div>
         <h3>不保存聊天内容</h3>
         <p>插件自身<strong>不落盘任何倾诉内容</strong>，转述完成后内存中不保留副本。日志由 AstrBot 统一管理，请自行评估其保留策略。</p>
       </div>
       <div class="card reveal">
-        <div class="ico">🎭</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 6.2a9.9 9.9 0 0 1 1.4-.1c5.9 0 9.4 5.5 9.4 5.5a17.3 17.3 0 0 1-3.5 4"/><path d="M6.6 8.1A17.1 17.1 0 0 0 2.6 11.6S6.1 17.1 12 17.1c1.3 0 2.5-.3 3.6-.7"/><path d="M9.9 10a3 3 0 0 0 4.1 4.2"/></svg></div>
         <h3>群内不出现身份字段</h3>
         <p>群内只出现匿名昵称与内容，没有头像、昵称、QQ 号。发送的是<strong>重新拼装的新消息</strong>，不携带原作者元数据。</p>
       </div>
       <div class="card reveal">
-        <div class="ico">🧑‍💼</div>
+        <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10" cy="8.4" r="3.6"/><path d="M3.6 20.2c0-3.6 2.9-6.5 6.4-6.5 1.5 0 2.9.5 4 1.4"/><path d="M15 17.6l1.8 1.8 3.2-3.7"/></svg></div>
         <h3>管理员可见原始消息</h3>
         <p>这是刻意设计：管理员仍可通过 AstrBot 日志查看原始消息，用于处置违规内容。建议在群规中向成员明确说明。</p>
       </div>
@@ -826,7 +861,7 @@ footer a{color:var(--text-2)}
 </section>
 
 <!-- ===== FAQ ===== -->
-<section id="faq">
+<section id="faq" class="alt">
   <div class="wrap">
     <div class="sec-head reveal">
       <span class="eyebrow">FAQ</span>

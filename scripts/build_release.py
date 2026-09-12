@@ -9,6 +9,7 @@
 
 注意：压缩包外层套一层 astrbot_plugin_anon_relay/ 目录，符合 AstrBot 的安装习惯
 （AstrBot 以 zip 文件名作为插件目录名，因此文件名不可改动）。
+仅打包插件运行所需文件：docs/（说明站）、scripts/、tests/ 与 CI 配置均不进入安装包。
 """
 
 from __future__ import annotations
@@ -25,7 +26,8 @@ DIST = os.path.join(REPO_ROOT, "dist")
 
 EXCLUDE_DIRS = {
     "__pycache__", ".git", ".idea", ".vscode", "dist", "scripts",
-    "docs",  # GitHub Pages 说明站，插件运行不需要
+    "docs",      # GitHub Pages 说明站，插件运行不需要
+    "tests",     # 测试套件只在开发/CI 使用，不进用户安装包
     ".ruff_cache", ".pytest_cache", ".github",
 }
 EXCLUDE_FILES = {

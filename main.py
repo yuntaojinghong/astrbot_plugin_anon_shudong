@@ -30,7 +30,7 @@ from astrbot.api.star import Context, Star, register
 
 logger = logging.getLogger("astrbot.plugin.anon_relay")
 
-__version__ = "1.9.1"
+__version__ = "1.10.0"
 
 
 @dataclass

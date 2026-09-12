@@ -1,51 +1,97 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="匿名树洞 插件图标">
   <title>匿名树洞 astrbot_plugin_anon_relay</title>
+  <desc>夜色渐变的圆角方块上，一个白色对话气泡里嵌着一枚钥匙孔，周围点缀四角星光——一句匿名的话，只有钥匙孔知道是谁说的。</desc>
   <defs>
+    <!-- 主渐变：青碧 → 亮蓝 → 紫罗兰 → 深靛，与 make_anon_logo.py 的 BG_STOPS 一致 -->
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#5FE3C8"/>
-      <stop offset="0.52" stop-color="#4B7BE5"/>
-      <stop offset="1" stop-color="#6A4BE0"/>
+      <stop offset="0" stop-color="#4ADEDE"/>
+      <stop offset="0.34" stop-color="#4D8BF5"/>
+      <stop offset="0.70" stop-color="#7B61FF"/>
+      <stop offset="1" stop-color="#2B1E6E"/>
     </linearGradient>
-    <radialGradient id="glow" cx="0.16" cy="0.10" r="0.62">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.34"/>
+    <!-- 左上柔光 -->
+    <radialGradient id="glow" cx="0.19" cy="0.10" r="0.75">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.40"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </radialGradient>
-    <filter id="sh" x="-25%" y="-25%" width="150%" height="150%">
-      <feDropShadow dx="0" dy="9" stdDeviation="15" flood-color="#17123C" flood-opacity="0.35"/>
+    <!-- 右下青色轮廓光 -->
+    <radialGradient id="rimCyan" cx="1.02" cy="0.98" r="0.66">
+      <stop offset="0" stop-color="#22D3EE" stop-opacity="0.36"/>
+      <stop offset="1" stop-color="#22D3EE" stop-opacity="0"/>
+    </radialGradient>
+    <!-- 左下回光 -->
+    <radialGradient id="rimViolet" cx="0.05" cy="1.06" r="0.55">
+      <stop offset="0" stop-color="#A88CFF" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#A88CFF" stop-opacity="0"/>
+    </radialGradient>
+    <!-- 四角暗角 -->
+    <radialGradient id="vignette" cx="0.5" cy="0.5" r="0.72">
+      <stop offset="0.62" stop-color="#100C30" stop-opacity="0"/>
+      <stop offset="1" stop-color="#100C30" stop-opacity="0.28"/>
+    </radialGradient>
+    <!-- 气泡内部竖向微渐变 -->
+    <linearGradient id="bubbleFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#F0EEFF"/>
+    </linearGradient>
+    <!-- 钥匙孔自身纵深 -->
+    <linearGradient id="glyph" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#342894"/>
+      <stop offset="1" stop-color="#120C38"/>
+    </linearGradient>
+    <!-- 气泡投影 -->
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="8" stdDeviation="15" flood-color="#120D32" flood-opacity="0.55"/>
     </filter>
+    <!-- 钥匙孔内上缘压暗 -->
+    <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <!-- 圆角裁切 -->
     <clipPath id="round">
-      <rect x="0" y="0" width="512" height="512" rx="115"/>
+      <rect x="0" y="0" width="512" height="512" rx="115.2"/>
     </clipPath>
+    <!-- 钥匙孔轮廓（上圆 + 锥形颈 + 收圆底） -->
+    <clipPath id="khClip">
+      <circle cx="256" cy="214.0" r="35.8"/>
+      <polygon points="236.5,224.8 275.5,224.8 287.7,291.1 224.3,291.1"/>
+      <ellipse cx="256" cy="291.1" rx="31.7" ry="30.2"/>
+    </clipPath>
+    <!-- 对话气泡（圆角矩形 + 指向左下的尾巴 + 尾巴根部过渡） -->
     <g id="bubble">
-      <rect x="94.7" y="143.4" width="322.6" height="204.8" rx="60.4"/>
-      <polygon points="139.3,315.4 132.1,405.5 223.2,340.0"/>
-      <rect x="134.1" y="307.2" width="97.3" height="26.6" rx="10.2"/>
+      <rect x="86.0" y="139.3" width="340.0" height="192.5" rx="53.2"/>
+      <polygon points="147.5,304.1 144.4,395.3 229.4,332.8"/>
+      <rect x="142.3" y="299.0" width="84.0" height="28.7" rx="11.3"/>
     </g>
-    <g id="spark">
-      <path d="M0 -1 L0.30 -0.30 L1 0 L0.30 0.30 L0 1 L-0.30 0.30 L-1 0 L-0.30 -0.30 Z"/>
-    </g>
+    <!-- 四角星（收腰 0.15） -->
+    <path id="spark" d="M0 -1 L0.15 -0.15 L1 0 L0.15 0.15 L0 1 L-0.15 0.15 L-1 0 L-0.15 -0.15 Z"/>
   </defs>
 
   <g clip-path="url(#round)">
     <rect width="512" height="512" fill="url(#bg)"/>
     <rect width="512" height="512" fill="url(#glow)"/>
+    <rect width="512" height="512" fill="url(#rimCyan)"/>
+    <rect width="512" height="512" fill="url(#rimViolet)"/>
+    <rect width="512" height="512" fill="url(#vignette)"/>
   </g>
-  <rect x="6" y="6" width="500" height="500" rx="109" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="3"/>
+  <!-- 内侧边缘光 -->
+  <rect x="8.2" y="8.2" width="495.6" height="495.6" rx="107.0" fill="none"
+        stroke="#ffffff" stroke-opacity="0.30" stroke-width="4"/>
 
   <g filter="url(#sh)">
-    <use href="#bubble" fill="#17123C" fill-opacity="0.20"/>
+    <use href="#bubble" fill="#120D32" fill-opacity="0.55"/>
   </g>
-  <use href="#bubble" fill="#ffffff"/>
+  <use href="#bubble" fill="url(#bubbleFill)"/>
 
-  <g fill="#2B2472">
-    <circle cx="256" cy="221.2" r="36.9"/>
-    <path d="M233.9 233.7h44.2l-6.6 77.9h-31z"/>
-    <circle cx="256" cy="311.6" r="15.5"/>
+  <!-- 钥匙孔：匿名 / 密语 -->
+  <g clip-path="url(#khClip)">
+    <rect width="512" height="512" fill="url(#glyph)"/>
+    <ellipse cx="256" cy="194.3" rx="86" ry="13.3" fill="#0A0720" opacity="0.55" filter="url(#soft)"/>
   </g>
 
   <g fill="#ffffff">
-    <use href="#spark" transform="translate(405.5 109.6) scale(26.6)" opacity="0.95"/>
-    <use href="#spark" transform="translate(444.4 162.8) scale(13.3)" opacity="0.8"/>
-    <use href="#spark" transform="translate(108.5 404.5) scale(18.4)" opacity="0.82"/>
+    <use href="#spark" transform="translate(412.7 106.5) scale(24.6)" opacity="0.99"/>
+    <use href="#spark" transform="translate(452.6 170.0) scale(11.3)" opacity="0.70"/>
+    <use href="#spark" transform="translate(106.5 410.6) scale(14.3)" opacity="0.77"/>
   </g>
 </svg>
