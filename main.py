@@ -30,7 +30,7 @@ from astrbot.api.star import Context, Star, register
 
 logger = logging.getLogger("astrbot.plugin.anon_relay")
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 
 @dataclass
@@ -59,6 +59,8 @@ class AnonRelayConfig:
     enable_group_mode: bool = True            # 允许在群聊内开启匿名模式
     notify_group_on_start: bool = False       # 开启匿名模式时在目标群内播报一条提示
     max_msg_len: int = 500                    # 单条转述最大字数，超长自动分段发送
+    max_images: int = 4                       # 单条转述最多携带的图片数（超出忽略）
+    allow_image_relay: bool = True            # 是否允许把图片转述到群（图片无法做内容审查）
     session_timeout_min: int = 0              # 会话空闲超时（分钟），0 为不超时
     admin_commands_enabled: bool = True       # 启用管理命令（禁言/解禁/永久禁用/解除禁用，仅管理员）
     mute_default_min: int = 30                # 禁言默认时长（分钟）
@@ -82,6 +84,8 @@ class AnonRelay(Star):
         self.user_nicknames = {}
         self.counter = 0
         self._kv_loaded = False
+        # 身份域 -> 已占用昵称集合的缓存（避免每次分配都全表扫描）
+        self._name_index = {}
         self._member_cache = {}
         self._member_cache_ttl = 600
         self.muted = {}
@@ -174,9 +178,22 @@ class AnonRelay(Star):
                 k: list(v) for k, v in raw_uw.items()
                 if k in ("bad_words", "review_words", "nicknames") and isinstance(v, (list, tuple))
             }
+            self._rebuild_name_index()
         except Exception as e:
             self.logger.warning("读取插件存储失败，本次运行会话数据仅保存在内存: %s", e)
         self._kv_loaded = True
+
+    def _rebuild_name_index(self):
+        """从已加载的昵称映射重建「身份域 -> 已占用昵称」索引。"""
+        index = {}
+        for k, n in self.user_nicknames.items():
+            if not n:
+                continue
+            scope = k.partition("|")[2]
+            if not scope:
+                continue
+            index.setdefault(scope, set()).add(n)
+        self._name_index = index
 
     async def _save_sessions(self):
         try:
@@ -415,6 +432,14 @@ class AnonRelay(Star):
 
     async def _handle_message(self, event, key, user_key, private):
         text = event.get_message_str().strip()
+        # 永久禁用优先于一切：无论是否已在会话中、是否重发开启关键词，
+        # 都必须先拦住。此前只在「开启会话」时判一次，被禁用的人只要不关会话
+        # 就能继续发；重发开启关键词还会被当成「已在会话中」而放行。
+        if self._is_user_banned(user_key):
+            if key in self.sessions:
+                self.sessions.pop(key, None)
+                await self._save_sessions()
+            return "🚫 该匿名身份已被管理员永久禁用，无法使用匿名模式。", True
         if self._contains_keyword(text, self._cfg("start_keywords")):
             return await self._start_session(event, key, user_key, private)
         if self._contains_keyword(text, self._cfg("stop_keywords")):
@@ -471,26 +496,72 @@ class AnonRelay(Star):
             targets = await self._targets_for_private(event)
         else:
             targets = self._targets_for_group(self._get_group_id(event))
+        targets = self._dedupe_targets(targets)
         if not targets:
             return "⚠️ 管理员还未在插件设置中填写「目标群号」，暂时无法开启匿名模式。", True
-        nickname = self._pick_nickname(user_key)
+        # 永久禁用按「用户名下所有匿名身份」判定，换群拿新昵称也不能绕过
+        if self._is_user_banned(user_key):
+            return "🚫 该匿名身份已被管理员永久禁用，无法开启匿名模式。", True
+        nickname = self._nickname_for(user_key, self._scope_of(targets[0], private))
+        # 该昵称若已被管理员永久禁用，直接拒绝开启
         if nickname in self.banned:
             return "🚫 该匿名身份已被管理员永久禁用，无法开启匿名模式。", True
         self.sessions[key] = {
-            "nickname": nickname,
+            "nickname": nickname,          # 主身份：单目标转述与回执展示用
+            "nickname_scope": self._scope_of(targets[0], private),
             "started_at": time.time(),
             "last_active": time.time(),
         }
         await self._save_sessions()
         if self._cfg_bool("notify_group_on_start"):
-            await self._send_to_groups(targets, event, [Plain(text=self._relay_header(nickname) + " 已开启匿名倾诉")])
+            for i, gid in enumerate(targets):
+                # 播报也要带上该群自己的匿名昵称，否则一播报就把人串起来了
+                name = nickname if i == 0 else self._nickname_for(
+                    user_key, self._scope_of(gid, False)
+                )
+                await self._send_group(
+                    event, gid, MessageChain(chain=[Plain(text=self._relay_header(name) + " 已开启匿名倾诉")])
+                )
         stop_hint = str(self._cfg("stop_keywords")).split(",")[0]
-        return (
-            f"🔇 匿名模式已开启，你的匿名身份是「{nickname}」\n"
-            "现在可以开始倾诉了，我会把你的内容匿名转述到指定群聊。\n"
-            f"发送「{stop_hint}」即可结束。\n"
-            f"📮 本次将转述到：{'、'.join(targets)}"
-        ), True
+        lines = []
+        if len(targets) > 1:
+            extra = "、".join(
+                f"{gid}→{self._nickname_for(user_key, self._scope_of(gid, False))}"
+                for gid in targets[1:]
+            )
+            lines.append(f"🔇 匿名模式已开启，你在 {targets[0]} 的匿名身份是「{nickname}」")
+            lines.append(f"其他群使用各自独立的昵称（{extra}），互相无法关联。")
+            if self._cfg_bool("show_time"):
+                # 同一秒发往多个群的消息时间戳相同，两个群的人可以把内容对上；
+                # 昵称已经分开了，这里是仅存的关联线索，直接在会话里提醒一次。
+                lines.append("💡 多群转述建议把「启用时间占位符 show_time」关掉：时间戳会削弱跨群匿名。")
+        else:
+            lines.append(f"🔇 匿名模式已开启，你的匿名身份是「{nickname}」")
+        lines.append("现在可以开始倾诉了，我会把你的内容匿名转述到指定群聊。")
+        lines.append(f"发送「{stop_hint}」即可结束。")
+        lines.append(f"📮 本次将转述到：{'、'.join(targets)}")
+        return "\n".join(lines), True
+
+    @staticmethod
+    def _scope_of(target_group, private):
+        """把转述目标映射成「身份域」：每个群一套独立昵称。
+
+        私聊会话也按**目标群**分域：同一个人在 A 群和 B 群拿到的昵称不同，
+        两个群无法把内容关联到同一个人（跨群匿名是插件的核心承诺）。
+        """
+        if not target_group and private:
+            return "p"
+        return f"g:{target_group}"
+
+    @staticmethod
+    def _dedupe_targets(targets):
+        """目标群去重并保序（映射规则里写重了不应导致重复转述）。"""
+        out = []
+        for t in targets or []:
+            t = str(t).strip()
+            if t and t not in out:
+                out.append(t)
+        return out
 
     async def _stop_session(self, key):
         if key not in self.sessions:
@@ -517,18 +588,93 @@ class AnonRelay(Star):
     # 匿名昵称
     # ------------------------------------------------------------------ #
 
-    def _pick_nickname(self, user_key):
-        """同一用户昵称固定；新用户从昵称池随机抽取，池为空则回退编号。"""
-        if user_key in self.user_nicknames:
-            return self.user_nicknames[user_key]
+    def _nickname_for(self, user_key, scope):
+        """取某用户在某「身份域」下的匿名昵称，没有就新建一个。
+
+        身份域（scope）的含义：
+        - ``g:<群号>``  —— 该用户在这个群里的匿名身份
+        - ``p``         —— 私聊会话的主身份（用于单目标转述与回执展示）
+
+        **每个群一套独立昵称**：同一个人在 A 群叫「番茄」、在 B 群叫「葡萄」，
+        两个群的人都无法把两边的内容关联到同一个人身上。此前是「一个人一个
+        昵称、全局复用」，只要有人同时在多个目标群，昵称一撞就能拼出完整轨迹，
+        跨群匿名的承诺形同虚设。
+
+        昵称在「同一身份域内」保证互不重复（README 承诺），池子用尽后追加
+        编号而非静默重名——重名会让管理员「禁言 番茄」一次误伤多人。
+        """
+        scope_key = f"{user_key}|{scope}"
+        cached = self.user_nicknames.get(scope_key)
+        if cached:
+            return cached
+
         pool = self._nickname_pool()
-        if pool:
-            nickname = random.choice(pool)
-        else:
-            self.counter += 1
-            nickname = f"{str(self._cfg('anon_name_prefix') or '匿名者')}-{self.counter:03d}"
-        self.user_nicknames[user_key] = nickname
+        # 两个约束同时满足：
+        # 1) 同一身份域内不重名（别人不会拿到同一个昵称）；
+        # 2) **同一个人在不同群不重名**——否则两个群一旦对上昵称就能确认是同一个人，
+        #    跨群匿名的意义就没了（实测：仅约束 (1) 时同一人两个群仍会撞名）。
+        taken = set(self._taken_nicknames(scope)) | self._nicknames_of_user(user_key)
+        nickname = self._allocate_nickname(pool, taken)
+        self.user_nicknames[scope_key] = nickname
+        self._name_index.setdefault(scope, set()).add(nickname)
         return nickname
+
+    def _taken_nicknames(self, scope):
+        """该身份域内已被占用的昵称集合。
+
+        索引按身份域（scope）本身索引，不做字符串截取——早先用「key 后缀匹配」
+        实现，``g:22`` 与 ``gg:22`` 这类会被误判，导致不同群拿到同一个昵称。
+        """
+        taken = self._name_index.get(scope)
+        if taken is None:
+            taken = {
+                n for k, n in self.user_nicknames.items()
+                if n and k.partition("|")[2] == scope
+            }
+            self._name_index[scope] = taken
+        return taken
+
+    def _allocate_nickname(self, pool, taken):
+        """从池中挑一个未被占用的昵称；池子用尽则追加编号。"""
+        free = [n for n in pool if n not in taken]
+        if free:
+            return random.choice(free)
+        if pool:
+            base = random.choice(pool)
+            for i in range(2, 10000):
+                cand = f"{base}{i}"
+                if cand not in taken:
+                    return cand
+            base = str(self._cfg("anon_name_prefix") or "匿名者")
+        else:
+            base = str(self._cfg("anon_name_prefix") or "匿名者")
+        self.counter += 1
+        return f"{base}-{self.counter:03d}"
+
+    def _nicknames_of_user(self, user_key):
+        """该用户在所有身份域下的昵称集合（供管理名单判定用）。"""
+        prefix = f"{user_key}|"
+        return {
+            n for k, n in self.user_nicknames.items()
+            if k.startswith(prefix) and n
+        }
+
+    def _is_user_banned(self, user_key):
+        """用户是否被永久禁用。
+
+        名单按昵称记录（管理员命令以昵称为目标），因此必须把该用户的**所有**
+        昵称都查一遍：只查当前昵称的话，被禁用者换个群拿到新昵称就能绕过。
+        """
+        if not self.banned:
+            return False
+        names = self._nicknames_of_user(user_key)
+        return any(n in self.banned for n in names) or bool(names & set(self.banned))
+
+    def _mute_until(self, names):
+        """返回这组昵称里最晚的禁言到期时间（未禁言返回 0）。"""
+        if not self.muted:
+            return 0.0
+        return max((float(self.muted.get(n, 0) or 0) for n in names), default=0.0)
 
     def _nickname_pool(self):
         uploaded = self.uploaded_words.get("nicknames")
@@ -652,8 +798,35 @@ class AnonRelay(Star):
         session = self.sessions.get(key)
         if not session:
             return None, True
+        user_key = self._user_key(event)
+        # 永久禁用：按该用户名下所有匿名身份判定（换群拿新昵称也不放行）
+        if self._is_user_banned(user_key):
+            return None, True
+
         chain = self._get_message_chain(event)
         parts = [c for c in chain if isinstance(c, (Plain, Image))]
+        text_raw = event.get_message_str().strip()
+
+        # —— 内容审查：对「和谐之后」的文本再判一次 ——
+        # 否则被和谐的脏话反而绕过了审查：原文命中就拦截、不和谐则照常转述，
+        # 删除审查词会让用户看到 "*" 而管理员以为拦住了。
+        if self._cfg_bool("review_enabled") and (
+            self._review_hit(text_raw) or self._review_hit(self._censor(text_raw))
+        ):
+            return "⚠️ 该内容未通过审查（包含敏感词），未转述。", True
+
+        images = [c for c in parts if isinstance(c, Image)]
+        dropped_images = 0
+        if images and not self._cfg_bool("allow_image_relay"):
+            dropped_images = len(images)
+            images = []
+        elif images:
+            cap = self._cfg_int("max_images") or 4
+            if cap > 0 and len(images) > cap:
+                dropped_images = len(images) - cap
+                images = images[:cap]
+
+        text = self._censor(text_raw)
         if not parts:
             # 语音/表情/视频等无法转述的消息：只提示一次，避免刷屏
             if session.get("warned_unsupported"):
@@ -662,55 +835,74 @@ class AnonRelay(Star):
             session["last_active"] = time.time()
             await self._save_sessions()
             return "暂不支持转述这类消息（仅支持文字和图片），本会话内不再重复提示。", True
+        if not text.strip() and not images:
+            if dropped_images:
+                return (
+                    "⚠️ 图片转述已被管理员关闭，本条未转述。如已发送图片，请改用文字。", True
+                )
+            return "⚠️ 这条消息没有可转述的内容。", True
+
         if private:
             targets = await self._targets_for_private(event)
         else:
             targets = self._targets_for_group(self._get_group_id(event))
+        targets = self._dedupe_targets(targets)
         if not targets:
             return "⚠️ 目标群聊未配置，无法转述，请联系管理员。", True
 
-        # 管理状态检查：永久禁用 / 禁言
-        nickname = session.get("nickname", "")
-        self.logger.info("匿名转述：%s → 目标群 %s", nickname, targets)
-        if nickname in self.banned:
-            return None, True  # 永久禁用：静默丢弃
-        mute_until = self.muted.get(nickname)
-        if mute_until and mute_until > time.time():
+        # 禁言/永久禁用都按昵称记录，而昵称是分群的：
+        # 逐个目标算出该群会用到的昵称，再按昵称判断能否转述。
+        # 只要**任一**相关昵称被禁言就整体不转述（管理员禁言的是这个人）。
+        #
+        # 主身份（开启会话时告知用户的那个昵称）必须用在主目标上：
+        # 否则「你的匿名身份是番茄」和群里实际显示的昵称会对不上，
+        # 管理员按告知的昵称禁言也就管不到这个人。
+        primary = str(session.get("nickname") or "")
+        primary_scope = str(session.get("nickname_scope") or "")
+        ready = []
+        names = set()
+        for gid in targets:
+            scope = self._scope_of(gid, not private)
+            # 主身份只在**它自己的身份域**里复用，保证「告知的昵称」与「群里显示的昵称」
+            # 一致；其它群一律走各群自己的昵称，避免把主昵称带到已被别人占用的群里。
+            if primary and scope == primary_scope:
+                name = primary
+            else:
+                name = self._nickname_for(user_key, scope)
+            names.add(name)
+            ready.append((gid, name))
+        names |= self._nicknames_of_user(user_key)
+
+        mute_until = self._mute_until(names)
+        if mute_until > time.time():
             if not session.get("muted_notified"):
                 session["muted_notified"] = True
                 await self._save_sessions()
                 remain = int((mute_until - time.time()) / 60) + 1
                 return f"🔇 你已被禁言，剩余约 {remain} 分钟。", True
-            return None, True  # 禁言中：静默丢弃
+            return None, True
         if session.get("muted_notified"):
-            # 禁言已结束，清除提示标记
             session["muted_notified"] = False
             await self._save_sessions()
 
-        # 内容审查：命中敏感词（反动/极端言论等）直接拦截，不转述。
-        # 每条消息独立判断，不沿用上一条消息的标记（新一轮倾诉不受上一轮影响），命中总是提示。
-        text_raw = event.get_message_str().strip()
-        if self._cfg_bool("review_enabled") and self._review_hit(text_raw):
-            return "⚠️ 该内容未通过审查（包含敏感词），未转述。", True
-
-        text = self._censor(text_raw)
-        images = [c for c in parts if isinstance(c, Image)]
         max_len = self._cfg_int("max_msg_len") or 500
-        msgs = self._build_relay_messages(nickname, text, images, max_len)
-
-        ok = True
-        for gid in targets:
-            for m in msgs:
+        failed = 0
+        for gid, name in ready:
+            self.logger.info("匿名转述：%s → 目标群 %s", name, gid)
+            for m in self._build_relay_messages(name, text, images, max_len):
                 if not await self._send_group(event, gid, m):
-                    ok = False
+                    failed += 1
 
         session["last_active"] = time.time()
         await self._save_sessions()
 
-        if not ok:
+        if failed:
             return "⚠️ 转述失败，请稍后重试。", True
         if self._cfg_bool("ack_on_relay"):
-            return "已为你转述 ✅", True
+            tip = ""
+            if dropped_images:
+                tip = f"\n（{dropped_images} 张图片未转述：管理员已关闭图片转述/超出数量上限）"
+            return "已为你转述 ✅" + tip, True
         return None, True
 
     def _build_relay_messages(self, name, text, images, max_len):
@@ -720,7 +912,14 @@ class AnonRelay(Star):
 
         def render(content):
             if fmt:
-                return fmt.replace("{name}", name).replace("{content}", content).replace("{time}", time_str)
+                # 模板里没有 {content} 就等于把内容整个吞掉——用户以为已经转述成功，
+                # 群里却只看到一行【匿名】。此时自动把内容补在末尾。
+                if "{content}" in fmt:
+                    return (fmt.replace("{name}", name)
+                               .replace("{content}", content)
+                               .replace("{time}", time_str))
+                head = (fmt.replace("{name}", name).replace("{time}", time_str)).strip()
+                return f"{head} {content}".strip() if content else head
             head = " ".join(p for p in [
                 str(self._cfg("relay_prefix") or ""),
                 name,
@@ -799,7 +998,13 @@ class AnonRelay(Star):
 
     @staticmethod
     def _parse_mapping_rules(raw):
-        """解析映射规则。格式：源:目标1,目标2;源2:（目标留空=转述回源本身）。"""
+        """解析映射规则。格式：源:目标1,目标2;源2:（目标留空=转述回源本身）。
+
+        同时兼容 README/面板提示里写的「多个源共用一个目标」写法：
+        ``成员A,成员B:群B号`` 会展开成两条规则。逗号既可分隔目标也可分隔源，
+        仅在「冒号左边不是纯数字」时按多源处理——用户 ID 通常是数字，
+        而群号/chat id 一定是数字，这样两种写法都不会被误判。
+        """
         raw = str(raw or "").replace("：", ":")
         rules = {}
         for part in re.split(r"[;；\n]+", raw):
@@ -810,12 +1015,28 @@ class AnonRelay(Star):
                 src, _, tgt = part.partition(":")
                 src = src.strip()
                 tgt = tgt.strip()
-                targets = [t.strip() for t in re.split(r"[,，、\s]+", tgt) if t.strip()] if tgt else [src]
+                targets = [t.strip() for t in re.split(r"[,，、\s]+", tgt) if t.strip()] if tgt else None
+                sources = AnonRelay._split_rule_sources(src)
+                for s in sources:
+                    body = targets if targets else [s]
+                    if s and s not in rules:
+                        rules[s] = body
             else:
-                src, targets = part.strip(), [part.strip()]
-            if src and src not in rules:
-                rules[src] = targets
+                src = part.strip()
+                if src and src not in rules:
+                    rules[src] = [src]
         return rules
+
+    @staticmethod
+    def _split_rule_sources(src):
+        """把规则左侧拆成多个源：``A,B:群`` 里 A、B 是两个源，``123:群`` 是一个。"""
+        src = str(src or "").strip()
+        if not src:
+            return []
+        if re.fullmatch(r"[+-]?\d+", src):
+            return [src]
+        parts = [p.strip() for p in re.split(r"[,，、\s]+", src) if p.strip()]
+        return parts or [src]
 
     # ------------------------------------------------------------------ #
     # 自动识别用户所在群（OneBot/QQ 成员查询，带缓存）

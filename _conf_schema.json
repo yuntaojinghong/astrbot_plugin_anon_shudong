@@ -132,6 +132,18 @@
     "hint": "超过该长度的内容自动分段发送（每段都会套用格式模板），避免单条消息过长。",
     "default": 500
   },
+  "max_images": {
+    "type": "int",
+    "description": "单条转述最多携带图片数",
+    "hint": "一条消息里的图片超过该数量时，多余的图片不会被转述（回执中会说明）。填 0 表示不限制。",
+    "default": 4
+  },
+  "allow_image_relay": {
+    "type": "bool",
+    "description": "允许转述图片",
+    "hint": "关闭后只转述文字，图片一律不发送。注意：图片无法做内容审查（审查只针对文字），如担心违规图片外泄可关闭此项。",
+    "default": true
+  },
   "session_timeout_min": {
     "type": "int",
     "description": "会话空闲超时（分钟）",

@@ -453,6 +453,11 @@ async def main():
                 == {"qq:GroupMessage:123"})
 
     # 31. 管理员禁言：禁言后不转述，只提示一次
+    #
+    # 这些用例用「只放一个昵称」的词池，需要干净的插件状态才能断言固定昵称；
+    # 前面的用例已经把同一个昵称占掉了（昵称在同一身份域内保证不重复），
+    # 因此这里显式重置 KV 存储，让结果与用例顺序无关。
+    KV_STORE.clear()
     p31, ctx31 = make_plugin({"nicknames": "番茄", "target_group_ids": "123"})
     await collect(p31.on_message(FakeEvent("开启匿名模式", sender="uMute")))
     rs = await collect(p31.on_message(FakeEvent("禁言 番茄 10", sender="admin1", role="admin", private=False, group="111")))
@@ -686,6 +691,94 @@ async def main():
     await check("新一轮正常内容可转述", any(s[0] == "qq:GroupMessage:123" for s in ctx56.sent))
     rs = await collect(p56.on_message(FakeEvent("又一条极端", sender="uN")))
     await check("同轮再次命中仍提示", len(rs) == 1 and "未通过审查" in rs[0])
+
+    # ================================================================== #
+    #  匿名身份模型（v2.1.0）：唯一性 + 每群独立 + 名单不可绕过
+    # ================================================================== #
+    # 这一段需要干净的插件状态（昵称池小，靠唯一性断言结果）
+    KV_STORE.clear()
+
+    # 57. 同一群内昵称绝不重复（README 承诺「不重复抽取」）
+    p57, _ = make_plugin({"target_group_ids": "123", "nicknames": "番茄,苹果,橘子"})
+    names = [p57._nickname_for(f"qq:n{i}", "g:123") for i in range(9)]
+    await check("同群昵称不重复", len(set(names)) == len(names), f"names={names}")
+    await check("池子用尽后追加编号而非重名", names[3] == "番茄2" or any(n.endswith(("2", "3")) for n in names[3:]),
+                f"names={names}")
+
+    # 58. 同一个人在 A、B 群拿到不同昵称（跨群无法关联）
+    p58, ctx58 = make_plugin({"target_group_ids": "111,222", "nicknames": "番茄,苹果,橘子,草莓",
+                              "auto_detect_groups": False})
+    await collect(p58.on_message(FakeEvent("开启匿名模式", sender="uX")))
+    await collect(p58.on_message(FakeEvent("秘密", sender="uX")))
+    texts = [c[0].text for _, c in ctx58.sent]
+    nick_a = texts[0].split("】")[0].replace("【", "")
+    nick_b = texts[1].split("】")[0].replace("【", "")
+    await check("跨群昵称不同(不可关联)", nick_a != nick_b, f"A群={nick_a} B群={nick_b}")
+    await check("多群昵称沿用主身份", nick_a == p58.sessions["p:qq:uX"]["nickname"], f"nick_a={nick_a}")
+
+    # 59. 昵称不重复 => 一次禁言只影响一个人
+    p59, _ = make_plugin({"target_group_ids": "123", "nicknames": "番茄", "auto_anon_private": False})
+    for i in range(3):
+        await collect(p59.on_message(FakeEvent("开启匿名模式", sender=f"qq{i}")))
+    got = [p59.sessions[f"p:qq:qq{i}"]["nickname"] for i in range(3)]
+    await check("同名池下三个用户仍互不重名", len(set(got)) == 3, f"nicknames={got}")
+
+    # 60. 永久禁用不可通过换群/新昵称绕过
+    p60, _ = make_plugin({"target_group_ids": "111,222", "nicknames": "番茄,苹果,橘子,草莓"})
+    await collect(p60.on_message(FakeEvent("开启匿名模式", sender="uEvade")))
+    name_111 = p60._nickname_for("qq:uEvade", "g:111")
+    await collect(p60.on_message(FakeEvent(f"永久禁用 {name_111}", sender="admin1", role="admin",
+                                           private=False, group="111")))
+    rs = await collect(p60.on_message(FakeEvent("开启匿名模式", sender="uEvade")))
+    await check("禁用一个昵称后该用户整体被拒", len(rs) == 1 and "永久禁用" in rs[0], f"rs={rs}")
+
+    # 61. 目标群去重：规则里写重了不会重复转述
+    p61, ctx61 = make_plugin({"target_group_ids": "123", "user_target_rules": "u61:123,123",
+                              "auto_detect_groups": False})
+    await collect(p61.on_message(FakeEvent("开启匿名模式", sender="u61")))
+    await collect(p61.on_message(FakeEvent("内容", sender="u61")))
+    await check("目标群去重", len(ctx61.sent) == 1, f"sent={[s[0] for s in ctx61.sent]}")
+
+    # 62. 规则左侧多个源（README 写法 成员A,成员B:群B号）
+    p62, _ = make_plugin(None)
+    rules = p62._parse_mapping_rules("成员A,成员B:群B号")
+    await check("多源映射规则可解析", set(rules) == {"成员A", "成员B"} and rules["成员A"] == ["群B号"], f"rules={rules}")
+    rules2 = p62._parse_mapping_rules("123456:111,222;999:")
+    await check("数字源+多目标仍正确", rules2.get("123456") == ["111", "222"] and rules2.get("999") == ["999"],
+                f"rules={rules2}")
+
+    # 63. 存储型审查词被和谐后不能绕过审查
+    p63, ctx63 = make_plugin({**TARGET, "bad_words": "傻逼", "censor_mask": "*",
+                              "review_words": "傻逼"})
+    await collect(p63.on_message(FakeEvent("开启匿名模式", sender="u63")))
+    before63 = len(ctx63.sent)
+    rs = await collect(p63.on_message(FakeEvent("你个傻逼", sender="u63")))
+    await check("和谐与审查同时命中时仍拦截", len(ctx63.sent) == before63 and "未通过审查" in rs[0],
+                f"rs={rs} sent_delta={len(ctx63.sent) - before63}")
+
+    # 64. 格式模板漏写 {content} 时不吞内容
+    p64, ctx64 = make_plugin({**TARGET, "relay_format": "【匿名】"})
+    await collect(p64.on_message(FakeEvent("开启匿名模式", sender="u64")))
+    await collect(p64.on_message(FakeEvent("非常重要的内容", sender="u64")))
+    await check("模板缺 {content} 时自动补内容",
+                any("非常重要的内容" in getattr(c[0], "text", "") for _, c in ctx64.sent),
+                f"sent={[getattr(c[0], 'text', '') for _, c in ctx64.sent]}")
+
+    # 65. 图片转述开关与上限
+    p65, ctx65 = make_plugin({**TARGET, "allow_image_relay": False, "auto_anon_private": True})
+    await collect(p65.on_message(FakeEvent("开场", sender="u65")))
+    before65 = len(ctx65.sent)
+    rs = await collect(p65.on_message(FakeEvent("", sender="u65", chain=[Image("http://x/a.png")])))
+    await check("关闭图片转述后不发图且如实告知",
+                len(ctx65.sent) == before65 and rs and "未转述" in rs[0], f"rs={rs}")
+
+    p66, ctx66 = make_plugin({**TARGET, "max_images": 1, "auto_anon_private": True})
+    await collect(p66.on_message(FakeEvent("开场", sender="u66")))
+    rs = await collect(p66.on_message(FakeEvent("", sender="u66", chain=[
+        Plain("三张"), Image("a.png"), Image("b.png"), Image("c.png")])))
+    sent_imgs = sum(1 for c in ctx66.sent[-1][1] if isinstance(c, Image)) if ctx66.sent else 0
+    await check("图片数量受 max_images 限制", sent_imgs == 1, f"imgs={sent_imgs}")
+    await check("被丢弃的图片在回执中说明", rs and "图片未转述" in rs[0], f"rs={rs}")
 
     print(f"\n结果: {PASSED} 通过, {FAILED} 失败")
     sys.exit(1 if FAILED else 0)
