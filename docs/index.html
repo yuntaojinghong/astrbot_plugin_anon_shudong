@@ -367,8 +367,8 @@ footer a{color:var(--text-2)}
       <a class="btn ghost" href="https://github.com/yuntaojinghong/astrbot_plugin_anon_shudong">在 GitHub 查看</a>
     </div>
     <div class="stats reveal">
-      <div class="stat"><div class="v" data-count="101">0</div><div class="l">离线回归测试</div></div>
-      <div class="stat"><div class="v" data-count="32">0</div><div class="l">可调配置项</div></div>
+      <div class="stat"><div class="v" data-count="115">0</div><div class="l">离线回归测试</div></div>
+      <div class="stat"><div class="v" data-count="34">0</div><div class="l">可调配置项</div></div>
       <div class="stat"><div class="v" data-count="16">0</div><div class="l">支持的消息平台</div></div>
       <div class="stat"><div class="v" data-count="0">0</div><div class="l">第三方依赖</div></div>
     </div>
@@ -400,8 +400,8 @@ footer a{color:var(--text-2)}
     <div class="note sec reveal">
       <span class="ni">🌱</span>
       <div>
-        <p><b>匿名昵称从池中不重复抽取并长期绑定。</b>同一个人每次倾诉都是同一个昵称，便于群内形成连续的对话感；
-        但昵称与真实身份之间没有任何对外可见的关联。</p>
+        <p><b>匿名昵称按群独立分配，同一个群内不重复抽取并长期绑定。</b>同一个人在不同群会拿到不同昵称（A 群叫「番茄」、B 群叫「葡萄」），
+        两个群的内容无法关联到同一个人；同一个群内昵称保持固定，便于群内形成连续的对话感。但昵称与真实身份之间没有任何对外可见的关联。</p>
       </div>
     </div>
   </div>
@@ -418,7 +418,7 @@ footer a{color:var(--text-2)}
 
     <div class="flow">
       <div class="step reveal"><div class="n">1</div><h3>识别与放行</h3><p>收到私聊后先判定身份：白名单内 → 正常对话；白名单外 → 直接进入匿名模式。群聊未开启时完全不干预。</p></div>
-      <div class="step reveal"><div class="n">2</div><h3>分配匿名身份</h3><p>首次开启时从昵称池抽一个未使用的昵称（如「番茄」）并持久化，之后一直沿用。池空则回退 <code>匿名者-001</code>。</p></div>
+      <div class="step reveal"><div class="n">2</div><h3>分配匿名身份</h3><p>首次在某个群开启时，从昵称池抽一个该群还没人用的昵称（如「番茄」）并持久化，之后在这个群一直沿用；换一个群会另抽一个。池内昵称用尽则追加编号（如「番茄2」），不会与他人重名。</p></div>
       <div class="step reveal"><div class="n">3</div><h3>治理检查</h3><p>内容先过审查词库，命中<strong>直接拦截不转述</strong>；再过和谐词库，命中替换为 <code>**</code> 后照常转述。</p></div>
       <div class="step reveal"><div class="n">4</div><h3>解析目标群</h3><p>用户映射规则 → 自动识别所在群 → 统一兜底，逐级尝试。然后按模板拼装新消息发送到各个目标群。</p></div>
     </div>
@@ -427,7 +427,7 @@ footer a{color:var(--text-2)}
       <span class="ni">🧩</span>
       <div>
         <p><b>转述格式可自定义。</b>默认 <code>【{name}】：{content}</code>，支持 <code>{name}</code> 昵称、<code>{content}</code> 内容、<code>{time}</code> 时间三个占位符。
-        长文按 <code>max_msg_len</code> 自动分段，每段都套用模板；图片同样支持转述。</p>
+        长文按 <code>max_msg_len</code> 自动分段，每段都套用模板；图片同样支持转述（<code>allow_image_relay</code> 可关闭、<code>max_images</code> 限数，默认最多 4 张）。</p>
       </div>
     </div>
   </div>
@@ -506,14 +506,15 @@ footer a{color:var(--text-2)}
       <div class="card reveal">
         <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4.5"/><circle cx="9" cy="9" r="1.05"/><circle cx="15" cy="9" r="1.05"/><circle cx="12" cy="12" r="1.05"/><circle cx="9" cy="15" r="1.05"/><circle cx="15" cy="15" r="1.05"/></svg></div>
         <h3>随机昵称池</h3>
-        <p>从水果昵称池随机抽取并长期绑定；池为空时回退为「匿名者-001」编号。</p>
+        <p>从水果昵称池随机抽取并长期绑定，<strong>每个群各自一套</strong>；池为空时回退为「匿名者-001」编号。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
         <div class="card-more">
           <ul>
-            <li>昵称不重复抽取，<strong>两个人不会拿到同一个昵称</strong></li>
-            <li>同一用户跨会话、跨重启保持同一昵称</li>
+            <li>同一个群内昵称不重复，<strong>两个人不会拿到同一个昵称</strong>；池子用尽后追加编号（如「番茄2」）而不是重名</li>
+            <li>同一个人<strong>在不同群会拿到不同昵称</strong>，两个群的内容无法关联到同一个人</li>
+            <li>同一个群内昵称长期固定，跨会话、跨重启保持不变</li>
             <li>昵称池可用 txt 文件批量导入（设置页或聊天中发文件）</li>
-            <li>池耗尽后回退编号，前辍由 <code>anon_name_prefix</code> 指定</li>
+            <li>昵称池为空时回退编号昵称（如「匿名者-001」），前缀由 <code>anon_name_prefix</code> 指定</li>
           </ul>
         </div>
       </div>
@@ -528,6 +529,7 @@ footer a{color:var(--text-2)}
             <li>留空 <code>relay_format</code> 则使用旧版多行格式</li>
             <li>旧格式由 <code>relay_prefix</code> / <code>relay_suffix</code> / <code>show_time</code> 组合</li>
             <li>超长文本按 <code>max_msg_len</code>（默认 500 字）分段，每段都套用模板</li>
+            <li>模板漏写 <code>{content}</code> 时不会丢内容，自动补在末尾</li>
             <li>占位符拼写错误不会导致崩溃，按原样输出</li>
           </ul>
         </div>
@@ -545,6 +547,7 @@ footer a{color:var(--text-2)}
           <ul>
             <li>格式：<code>用户ID:群A,群B;用户ID2:群C</code></li>
             <li>分号分隔多个用户，逗号分隔多个目标群</li>
+            <li>也支持多个源共用一个目标：<code>成员A,成员B:群B号</code></li>
             <li>用户 ID 支持 <code>平台:ID</code> 写法</li>
             <li>命中后不再尝试自动识别与统一目标</li>
           </ul>
@@ -576,6 +579,7 @@ footer a{color:var(--text-2)}
             <li>格式：<code>源群号:目标群1,目标群2;源群号2:</code></li>
             <li>支持分号或换行分隔多条规则</li>
             <li>目标留空 = 转述回来源群本身</li>
+            <li>目标群重复填写会自动去重，不会重复转述</li>
             <li>未配置规则的群走统一兜底目标</li>
           </ul>
         </div>
@@ -601,14 +605,16 @@ footer a{color:var(--text-2)}
       <div class="card reveal">
         <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.4l7.2 2.6v5.6c0 4.3-3 7.8-7.2 9.1-4.2-1.3-7.2-4.8-7.2-9.1V6l7.2-2.6Z"/><path d="M8.7 11.9l2.4 2.4 4.2-4.5"/></svg></div>
         <h3>内容审查</h3>
-        <p>命中 <code>review_words</code> 直接拦截不转述，并告知倾诉者；每条消息<strong>独立判断</strong>。</p>
+        <p>命中 <code>review_words</code> 直接拦截不转述，并告知倾诉者；每条消息<strong>独立判断</strong>，且只匹配文字。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
         <div class="card-more">
           <ul>
             <li>审查 = 拦截不发送；和谐 = 替换后照常发送</li>
+            <li>被和谐的文本会<strong>再判一次审查</strong>：同一个词既在和谐库又在审查库时，会直接拦截而不是替换成 <code>**</code> 后照常发出</li>
             <li>命中总是提示，不像旧版会静默丢弃</li>
             <li>新一轮正常倾诉不会被上一轮审查结果影响</li>
             <li>开关 <code>review_enabled</code> 默认开启，词库默认留空，填了才生效</li>
+            <li><strong>图片无法做内容审查</strong>，违规图片会被原样转发；担心可关闭 <code>allow_image_relay</code></li>
           </ul>
         </div>
       </div>
@@ -631,13 +637,14 @@ footer a{color:var(--text-2)}
       <div class="card reveal">
         <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M6.4 6.4l11.2 11.2"/></svg></div>
         <h3>身份管控</h3>
-        <p>管理员可「禁言 昵称 分钟」「永久禁用 昵称」，按匿名昵称生效，重启不丢。</p>
+        <p>管理员可「禁言 昵称 分钟」「永久禁用 昵称」，按该群显示的匿名昵称生效（同一群内唯一），重启不丢。</p>
         <div class="hint">详细说明<span class="ar">▼</span></div>
         <div class="card-more">
           <ul>
             <li><code>禁言 番茄 60</code> 禁言一小时，期间其消息不转述</li>
-            <li><code>永久禁用 草莓</code> 使其无法再开启匿名模式</li>
+            <li><code>永久禁用 草莓</code> 立即生效，并按该用户名下<strong>全部</strong>匿名身份拦住，换群拿新昵称也无法绕过</li>
             <li><code>解禁</code> / <code>解除禁用</code> 恢复使用</li>
+            <li>昵称在同一个群内唯一，命令按该群显示的昵称执行</li>
             <li>管理名单永久保存，重启不丢</li>
           </ul>
         </div>
@@ -665,7 +672,7 @@ footer a{color:var(--text-2)}
         <div class="hint">详细说明<span class="ar">▼</span></div>
         <div class="card-more">
           <ul>
-            <li>只保存「用户标识 → 匿名编号 + 时间」的映射</li>
+            <li>只保存「用户标识（群聊含群号）→ 匿名昵称 + 时间」的映射</li>
             <li><strong>不保存聊天内容</strong></li>
             <li>可选会话空闲超时 <code>session_timeout_min</code></li>
             <li>在 WebUI 插件→数据管理 中可清空重置</li>
@@ -719,7 +726,7 @@ footer a{color:var(--text-2)}
         <div class="bub out">【柠檬】：我**，这个需求改第八遍了</div>
         <div class="note" style="margin-top:6px">
           <span class="ni">👀</span>
-          <div><p>群里只有昵称与内容，<b>没有头像、没有 QQ 号、没有原作者字段</b>。同一个昵称始终对应同一个人，但无法反查是谁。</p></div>
+          <div><p>群里只有昵称与内容，<b>没有头像、没有 QQ 号、没有原作者字段</b>。同一个群内，一个昵称始终对应同一个人；但同一个人在不同群是不同昵称，跨群无法关联，也无法反查是谁。</p></div>
         </div>
       </div>
     </div>
@@ -740,7 +747,7 @@ footer a{color:var(--text-2)}
     <div class="sec-head reveal">
       <span class="eyebrow">Config</span>
       <h2>配置面板</h2>
-      <p>WebUI → 插件管理 → 「匿名树洞」→ 配置。表单由 <code>_conf_schema.json</code> 自动生成，共 32 项。</p>
+      <p>WebUI → 插件管理 → 「匿名树洞」→ 配置。表单由 <code>_conf_schema.json</code> 自动生成，共 34 项。</p>
     </div>
 
     <h3 class="sub-head reveal">最关键的三项</h3>
@@ -778,12 +785,14 @@ footer a{color:var(--text-2)}
       <table>
         <thead><tr><th>配置键</th><th>默认</th><th>说明</th></tr></thead>
         <tbody>
-          <tr><td><code>relay_format</code></td><td><code>【{name}】：{content}</code></td><td>转述格式模板，占位符 <code>{name}</code> <code>{content}</code> <code>{time}</code>；留空用旧格式</td></tr>
-          <tr><td><code>nicknames</code></td><td>水果昵称池</td><td>随机昵称池；留空则用编号兜底</td></tr>
+          <tr><td><code>relay_format</code></td><td><code>【{name}】：{content}</code></td><td>转述格式模板，占位符 <code>{name}</code> <code>{content}</code> <code>{time}</code>；留空用旧格式，漏写 <code>{content}</code> 时内容自动补在末尾</td></tr>
+          <tr><td><code>nicknames</code></td><td>水果昵称池</td><td>随机昵称池；同一个群内不重复（用尽后追加编号），留空则用编号兜底</td></tr>
           <tr><td><code>nicknames_file</code></td><td>（空）</td><td>昵称池 txt 文件（设置页上传）</td></tr>
           <tr><td><code>anon_name_prefix</code></td><td><code>匿名者</code></td><td>编号兜底昵称前缀</td></tr>
-          <tr><td><code>show_time</code></td><td><code>true</code></td><td>提供 <code>{time}</code> 占位符 / 旧格式附带时间</td></tr>
+          <tr><td><code>show_time</code></td><td><code>true</code></td><td>提供 <code>{time}</code> 占位符 / 旧格式附带时间。<strong>多群转述时建议关闭</strong>：同一秒的时间戳会让两个群的内容相互可关联</td></tr>
           <tr><td><code>max_msg_len</code></td><td><code>500</code></td><td>单条转述最大字数，超长自动分段</td></tr>
+          <tr><td><code>max_images</code></td><td><code>4</code></td><td>单条转述最多携带的图片数，超出部分不转述（回执会说明丢了几张）；<code>0</code> 表示不限制</td></tr>
+          <tr><td><code>allow_image_relay</code></td><td><code>true</code></td><td>是否允许把图片转述到群；关闭后只转述文字。<strong>图片无法做内容审查</strong>，担心违规图片外泄可关闭</td></tr>
           <tr><td><code>relay_prefix</code> / <code>relay_suffix</code></td><td><code>【匿名倾诉】</code> / （空）</td><td>仅 <code>relay_format</code> 留空时生效</td></tr>
         </tbody>
       </table>
@@ -794,8 +803,8 @@ footer a{color:var(--text-2)}
       <table>
         <thead><tr><th>配置键</th><th>默认</th><th>说明</th></tr></thead>
         <tbody>
-          <tr><td><code>user_target_rules</code></td><td>（空）</td><td>私聊用户映射（优先）：<code>用户ID:群A,群B;用户ID2:群C</code></td></tr>
-          <tr><td><code>group_target_rules</code></td><td>（空）</td><td>群聊映射：<code>源群号:目标群1,目标群2;源群号2:</code>（分号或换行分隔）</td></tr>
+          <tr><td><code>user_target_rules</code></td><td>（空）</td><td>私聊用户映射（优先）：<code>用户ID:群A,群B;用户ID2:群C</code>；也支持多个源共用一个目标，如 <code>成员A,成员B:群B号</code></td></tr>
+          <tr><td><code>group_target_rules</code></td><td>（空）</td><td>群聊映射：<code>源群号:目标群1,目标群2;源群号2:</code>（分号或换行分隔，重复目标自动去重）</td></tr>
           <tr><td><code>detect_group_ids</code></td><td>（空）</td><td>自动识别的候选群；留空 = 机器人所在的全部群</td></tr>
         </tbody>
       </table>
@@ -824,7 +833,7 @@ footer a{color:var(--text-2)}
         <tbody>
           <tr><td><code>禁言 昵称 [分钟]</code></td><td>禁言该匿名身份，省略时长用默认 <code>mute_default_min</code></td></tr>
           <tr><td><code>解禁 昵称</code></td><td>解除禁言</td></tr>
-          <tr><td><code>永久禁用 昵称</code></td><td>永久禁用该匿名身份，无法再开启匿名模式</td></tr>
+          <tr><td><code>永久禁用 昵称</code></td><td>按该用户名下全部匿名身份禁用并立即生效，无法再开启匿名模式（换群拿新昵称也绕不过）</td></tr>
           <tr><td><code>解除禁用 昵称</code></td><td>恢复匿名模式使用权限</td></tr>
           <tr><td><code>上传和谐词库 / 上传审查词库 / 上传昵称池</code></td><td>附带 txt 文件批量导入词库</td></tr>
           <tr><td><code>重置词库</code></td><td>清除聊天上传的词库，回退到设置页文件/面板配置</td></tr>
@@ -922,7 +931,7 @@ footer a{color:var(--text-2)}
       <div class="card reveal">
         <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.2 12.2l2.6 2.6 5-5.4"/></svg></div>
         <h3>只保存最小状态</h3>
-        <p>会话状态（用户平台标识 → 匿名编号、时间）与管理名单，存放在 AstrBot 的插件 KV 存储中，重启不丢。</p>
+        <p>会话状态（用户平台标识、群号 → 匿名昵称、时间）与管理名单，存放在 AstrBot 的插件 KV 存储中，重启不丢。</p>
       </div>
       <div class="card reveal">
         <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M6.4 6.4l11.2 11.2"/></svg></div>
@@ -932,7 +941,7 @@ footer a{color:var(--text-2)}
       <div class="card reveal">
         <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 6.2a9.9 9.9 0 0 1 1.4-.1c5.9 0 9.4 5.5 9.4 5.5a17.3 17.3 0 0 1-3.5 4"/><path d="M6.6 8.1A17.1 17.1 0 0 0 2.6 11.6S6.1 17.1 12 17.1c1.3 0 2.5-.3 3.6-.7"/><path d="M9.9 10a3 3 0 0 0 4.1 4.2"/></svg></div>
         <h3>群内不出现身份字段</h3>
-        <p>群内只出现匿名昵称与内容，没有头像、昵称、QQ 号。发送的是<strong>重新拼装的新消息</strong>，不携带原作者元数据。</p>
+        <p>群内只出现匿名昵称与内容，没有头像、昵称、QQ 号。发送的是<strong>重新拼装的新消息</strong>，不携带原作者元数据；昵称<strong>按群独立分配</strong>，同一个人在不同群对不上，跨群无法关联。</p>
       </div>
       <div class="card reveal">
         <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10" cy="8.4" r="3.6"/><path d="M3.6 20.2c0-3.6 2.9-6.5 6.4-6.5 1.5 0 2.9.5 4 1.4"/><path d="M15 17.6l1.8 1.8 3.2-3.7"/></svg></div>
@@ -969,6 +978,13 @@ footer a{color:var(--text-2)}
       </details>
 
       <details>
+        <summary>图片会被审查吗？</summary>
+        <p>不会。内容审查（<code>review_words</code>）只匹配文字，图片会被原样转发，无法做内容识别。如果担心违规图片外泄，
+        把 <code>allow_image_relay</code> 设为 <code>false</code> 即可只转述文字；单条消息的图片数量默认最多 4 张
+        （<code>max_images</code>，<code>0</code> 为不限制），超出部分不转述并在回执中说明丢了几张。</p>
+      </details>
+
+      <details>
         <summary>转述失败怎么排查？</summary>
         <p>依次检查：目标群号是否正确、机器人是否在该群里、插件是否已重载、AstrBot 日志中是否有
         <code>转述到群 ... 失败</code> 或 <code>未找到平台 ...</code> 报错。</p>
@@ -982,13 +998,14 @@ footer a{color:var(--text-2)}
 
       <details>
         <summary>两个人会拿到同一个匿名昵称吗？</summary>
-        <p>不会，昵称从池中不重复抽取。池子耗尽后会回退到编号昵称（<code>匿名者-001</code>…）。</p>
+        <p>同一个群内不会：两个人不会拿到同一个昵称；池子用尽后会追加编号（如「番茄2」）而不是重名，
+        否则管理员「禁言 番茄」一次就会误伤多人。同一个人在不同群则会拿到不同昵称，两个群的内容无法关联到同一个人。</p>
       </details>
 
       <details>
         <summary>匿名昵称想重置怎么办？</summary>
-        <p>昵称与编号全局持久化，同一用户多次开启保持不变。如需重置，删除插件存储数据即可
-        （WebUI 插件管理 → 数据管理）。</p>
+        <p>昵称按群持久化：同一个群内多次开启保持不变，换群则另抽一个，因此管理命令请以该群显示的昵称为准
+        （如 <code>禁言 番茄 10</code>）。如需重置，删除插件存储数据即可（WebUI 插件管理 → 数据管理）。</p>
       </details>
 
       <details>
@@ -1004,7 +1021,7 @@ footer a{color:var(--text-2)}
 
       <details>
         <summary>怎么确认代码没被改坏？</summary>
-        <p>仓库自带 101 项离线回归测试，用桩模块模拟 AstrBot API，无需安装 AstrBot：
+        <p>仓库自带 115 项离线回归测试，用桩模块模拟 AstrBot API，无需安装 AstrBot：
         <code>python -X utf8 tests/test_logic.py</code>。CI 在 Python 3.10–3.13 上全部跑一遍。</p>
       </details>
     </div>
@@ -1058,7 +1075,7 @@ footer a{color:var(--text-2)}
       <a href="https://github.com/yuntaojinghong/astrbot_plugin_anon_shudong/blob/main/LICENSE">MIT 许可证</a>
       <a href="https://github.com/AstrBotDevs/AstrBot">AstrBot</a>
     </div>
-    <div>匿名树洞 · astrbot_plugin_anon_shudong · 用 <span class="grad-text" style="font-weight:800">AstrBot Star API</span> 构建</div>
+    <div>匿名树洞 · v2.1.0 · astrbot_plugin_anon_shudong · 用 <span class="grad-text" style="font-weight:800">AstrBot Star API</span> 构建</div>
   </div>
 </footer>
 
