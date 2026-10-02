@@ -17,20 +17,19 @@
 基于 AstrBot v4（Star API，>= 4.16）开发。
 """
 
-import logging
 import os
 import random
 import re
 import time
 from dataclasses import MISSING, dataclass, field, fields
 
+from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, MessageChain, filter
 from astrbot.api.message_components import File, Image, Plain
 from astrbot.api.star import Context, Star, register
 
-logger = logging.getLogger("astrbot.plugin.anon_relay")
 
-__version__ = "2.1.0"
+__version__ = "2.1.1"
 
 
 @dataclass
@@ -79,7 +78,6 @@ class AnonRelay(Star):
         super().__init__(context)
         self.config = self._merge_config(config)
         self.plugin_id = getattr(self, "plugin_id", None) or "anon_relay"
-        self.logger = getattr(self, "logger", None) or logger
         self.sessions = {}
         self.user_nicknames = {}
         self.counter = 0
@@ -180,7 +178,7 @@ class AnonRelay(Star):
             }
             self._rebuild_name_index()
         except Exception as e:
-            self.logger.warning("读取插件存储失败，本次运行会话数据仅保存在内存: %s", e)
+            logger.warning("读取插件存储失败，本次运行会话数据仅保存在内存: %s", e)
         self._kv_loaded = True
 
     def _rebuild_name_index(self):
@@ -204,7 +202,7 @@ class AnonRelay(Star):
             await self.put_kv_data("banned", self.banned)
             await self.put_kv_data("uploaded_words", self.uploaded_words)
         except Exception as e:
-            self.logger.warning("保存会话数据失败: %s", e)
+            logger.warning("保存会话数据失败: %s", e)
 
     # ------------------------------------------------------------------ #
     # 消息入口
@@ -888,7 +886,7 @@ class AnonRelay(Star):
         max_len = self._cfg_int("max_msg_len") or 500
         failed = 0
         for gid, name in ready:
-            self.logger.info("匿名转述：%s → 目标群 %s", name, gid)
+            logger.info("匿名转述：%s → 目标群 %s", name, gid)
             for m in self._build_relay_messages(name, text, images, max_len):
                 if not await self._send_group(event, gid, m):
                     failed += 1
@@ -1063,7 +1061,7 @@ class AnonRelay(Star):
                 if await self._user_in_group(client, gid, user_id):
                     groups.append(str(gid))
         except Exception as e:
-            self.logger.info("自动识别用户所在群失败，回退统一目标: %s", e)
+            logger.info("自动识别用户所在群失败，回退统一目标: %s", e)
             return []
         self._member_cache[cache_key] = (now, groups)
         return groups
@@ -1113,10 +1111,10 @@ class AnonRelay(Star):
         try:
             ok = await self.context.send_message(session_str, chain)
             if not ok:
-                self.logger.error("未找到平台 %s，无法转述到群 %s", event.get_platform_id(), group_id)
+                logger.error("未找到平台 %s，无法转述到群 %s", event.get_platform_id(), group_id)
             return bool(ok)
         except Exception as e:
-            self.logger.error("转述到群 %s 失败: %s", group_id, e)
+            logger.error("转述到群 %s 失败: %s", group_id, e)
             return False
 
     async def _whisper(self, event, text):
@@ -1125,7 +1123,7 @@ class AnonRelay(Star):
         try:
             return bool(await self.context.send_message(session_str, MessageChain(chain=[Plain(text=text)])))
         except Exception as e:
-            self.logger.info("私聊悄悄话发送失败，改为群内提示: %s", e)
+            logger.info("私聊悄悄话发送失败，改为群内提示: %s", e)
             return False
 
     # ------------------------------------------------------------------ #

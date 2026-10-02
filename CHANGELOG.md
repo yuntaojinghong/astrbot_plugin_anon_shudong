@@ -3,6 +3,19 @@
 本文件记录 astrbot_plugin_anon_shudong（匿名树洞）的所有重要变更。
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [2.1.1] - 2026-10-02
+
+### Fixed
+
+- **日志改为只从 `astrbot.api` 导入**：插件代码里此前直接 `import logging` +
+  `logging.getLogger(...)`。AstrBot 插件市场安全审查要求 logger 必须且只能从
+  `astrbot.api` 导入、严禁使用 Python 内置 logging，故提前修掉以免上架被拒。
+  7 处日志调用改为使用 AstrBot 提供的插件专用 logger，日志输出位置与级别不变。
+- 去掉 `self.logger = getattr(self, "logger", None) or logger` 这层间接引用；
+  `from astrbot.api import logger` 按 import 分组归位（此前被放在标准库之前）。
+- `tests/test_logic.py` 的 `astrbot.api` 桩补上 `logger`——插件不再有 logging
+  回退，桩必须提供同名对象。
+
 ## [2.1.0] - 2026-10-02
 
 ### Changed

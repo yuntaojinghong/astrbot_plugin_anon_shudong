@@ -117,7 +117,11 @@ def register(name, author, desc, version):
 
 
 _module("astrbot")
-_module("astrbot.api")
+# astrbot.api 必须导出 logger：市场审查要求插件只能从 astrbot.api 取 logger，因此插件代码里不再有 `import logging` 回退，桩模块必须提供同名对象。
+api_logger = logging.getLogger("astrbot.api.test")
+
+
+_module("astrbot.api", logger=api_logger)
 _module("astrbot.api.event", filter=_Filter(), AstrMessageEvent=AstrMessageEvent, MessageChain=MessageChain)
 _module("astrbot.api.star", Context=Context, Star=Star, register=register)
 _module("astrbot.api.message_components", Plain=Plain, Image=Image, File=File)
