@@ -29,7 +29,7 @@ from astrbot.api.message_components import File, Image, Plain
 from astrbot.api.star import Context, Star, register
 
 
-__version__ = "2.1.1"
+__version__ = "2.1.2"
 
 
 @dataclass

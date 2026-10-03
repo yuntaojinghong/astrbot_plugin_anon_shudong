@@ -27,6 +27,45 @@ jobs:
       - name: 离线回归测试
         run: python -X utf8 tests/test_logic.py
 
+      - name: 市场审查规则校验（logger 来源 + 禁止内置 logging）
+        run: |
+          python - <<'PY'
+          # 插件市场安全审查点名的三条硬规则，直接在这里卡住：
+          #   1. 不得 `import logging`
+          #   2. 不得 `logging.getLogger(...)`
+          #   3. 不得把 logger 挂到 self.logger 上使用
+          # 审查原文要求：logger 必须且只能从 astrbot.api 导入。
+          # 只检查随包分发的代码；tests/ 里的测试桩自用 logging 不算违规。
+          import pathlib, re, sys
+
+          SHIPPED_SKIP = {"tests", "scripts", ".github", "docs", "dist", "__pycache__"}
+          RULES = [
+              ("import logging", re.compile(r"^\s*import\s+logging\s*$", re.M)),
+              ("from logging import", re.compile(r"^\s*from\s+logging\b", re.M)),
+              ("logging.getLogger", re.compile(r"logging\s*\.\s*getLogger")),
+              ("logging.<level>()",
+               re.compile(r"\blogging\s*\.\s*(?:info|warning|error|debug|exception|critical)\s*\(")),
+              ("self.logger =", re.compile(r"self\s*\.\s*logger\s*=")),
+          ]
+
+          bad = []
+          for path in pathlib.Path(".").rglob("*.py"):
+              if SHIPPED_SKIP & set(path.parts):
+                  continue
+              text = path.read_text(encoding="utf-8", errors="replace")
+              for label, pat in RULES:
+                  for m in pat.finditer(text):
+                      line = text[: m.start()].count("\n") + 1
+                      bad.append(f"{path}:{line} <{label}> {text.splitlines()[line-1].strip()[:80]}")
+
+          if bad:
+              print("发现违反市场审查规则的写法：")
+              for item in bad:
+                  print("  ", item)
+              sys.exit(1)
+          print("OK: logger 只从 astrbot.api 导入，无内置 logging 用法")
+          PY
+
   package:
     name: 打包校验
     runs-on: ubuntu-latest
@@ -60,6 +99,42 @@ jobs:
               print("压缩包包含不应分发的文件:", leaked)
               sys.exit(1)
           print(f"OK: {len(names)} 个文件，必需文件齐全")
+          PY
+
+      - name: 校验压缩包内代码符合市场审查规则（logger 来源）
+        run: |
+          python - <<'PY'
+          # 审查方实际检查的是**提交上去的那份代码**，所以这里直接拆包验，
+          # 而不是只验源码树——源码合规但打包漏文件/打了旧文件的情况都要挡住。
+          import re, sys, zipfile
+          RULES = [
+              ("import logging", re.compile(r"^\s*import\s+logging\s*$", re.M)),
+              ("from logging", re.compile(r"^\s*from\s+logging\b", re.M)),
+              ("logging.getLogger", re.compile(r"logging\s*\.\s*getLogger")),
+              ("logging.<level>()", re.compile(
+                  r"\blogging\s*\.\s*(?:info|warning|error|debug|exception|critical)\s*\(")),
+              ("self.logger =", re.compile(r"self\s*\.\s*logger\s*=")),
+          ]
+          zf = zipfile.ZipFile("dist/astrbot_plugin_anon_shudong.zip")
+          bad = []
+          for name in zf.namelist():
+              if not name.endswith(".py"):
+                  continue
+              text = zf.read(name).decode("utf-8", "replace")
+              for label, pat in RULES:
+                  for m in pat.finditer(text):
+                      line = text[: m.start()].count("\n") + 1
+                      bad.append(f"{name}:{line} <{label}> {text.splitlines()[line-1].strip()[:70]}")
+          if bad:
+              print("发布包违反市场审查规则：")
+              for item in bad:
+                  print("  ", item)
+              sys.exit(1)
+          main = zf.read("astrbot_plugin_anon_shudong/main.py").decode("utf-8")
+          if "from astrbot.api import logger" not in main:
+              print("main.py 未从 astrbot.api 导入 logger")
+              sys.exit(1)
+          print("OK: 发布包 logger 只来自 astrbot.api，无内置 logging 用法")
           PY
 
       - name: 上传压缩包（供人工检查）

@@ -3,6 +3,34 @@
 本文件记录 astrbot_plugin_anon_shudong（匿名树洞）的所有重要变更。
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [2.1.2] - 2026-10-03
+
+### Changed
+
+- **重新提交市场审查**：审查方对 **v2.1.0** 给出的唯一阻塞项是 logger 违规
+  （`main.py` 第 20 行 `import logging`、第 31 行 `logging.getLogger(...)`、
+  第 82 行挂到 `self.logger`）。该问题已在 **v2.1.1** 修掉，本版在 2.1.1 基础上
+  加固校验并重新发版。
+- 审查方同时确认：插件整体功能正常，未发现恶意代码、外传数据、
+  反向 Shell、隐藏下载或对 Reviewer 的提示词注入；扫描结果
+  `malicious=0, suspicious=0, harmless=0, undetected=66`。
+
+### Added
+
+- **CI 硬校验市场审查规则**，把审查方点名的三条直接卡在构建流程里：
+  1. 不得 `import logging`
+  2. 不得 `logging.getLogger(...)`
+  3. 不得把 logger 挂到 `self.logger` 上使用
+  源码检查只覆盖随包分发的代码（`tests/` 里的测试桩自用 logging 不算违规）。
+- **打包后二次校验**：拆开构建出的 zip 再验一遍同样的规则，
+  确保"提交上去的那份代码"合规——源码合规但打包漏文件或打了旧文件的情况一并挡住。
+
+### 当前状态（本版已核对）
+
+- `main.py` 仅 `from astrbot.api import logger`，无任何内置 `logging` 用法
+- 无 `self.logger =` 赋值；7 处日志调用均使用 AstrBot 提供的插件 logger
+- 发布包内 Python 文件仅 `main.py` 一个，规则校验 0 违规
+
 ## [2.1.1] - 2026-10-02
 
 ### Fixed
